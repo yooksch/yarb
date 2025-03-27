@@ -2,7 +2,8 @@
 
 YARB (Yet Another Roblox Bootstrapper) is a custom Roblox bootstrapper aimed at being feature-rich, fast and easy-to-use.
 
-**Notice:** YARB is in early developed; not all features are implemented
+> [!NOTE]
+> YARB is in early developed; not all features are implemented
 
 ## Features
 - GUI to manage both FastFlags and modifications
@@ -12,9 +13,7 @@ YARB (Yet Another Roblox Bootstrapper) is a custom Roblox bootstrapper aimed at 
 - Query Roblox server location
 - Discord RPC
 
-## Installation
-
-### Prerequisites
+## Prerequisites
 
 - Meson
 - A C++23 capable compiler
@@ -24,6 +23,8 @@ YARB (Yet Another Roblox Bootstrapper) is a custom Roblox bootstrapper aimed at 
 - OpenSSL
 - nlohmann_json
 - OpenGL 3
+
+## Installation
 
 1. Clone the repository: `git clone https://github.com/yooksch/yarb.git`
 2. Configure Meson: `meson setup build`
