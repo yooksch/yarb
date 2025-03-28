@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
     } else  if (command == "launch") {
         // Ensure roblox is up to date
         auto version = Game::GetLatestRobloxVersion();
-        if (config->installed_version != version) {
+        if (config->installed_version == version) {
             Log::Info("MAIN", "Roblox is up-to-date");
         } else {
             Log::Info("MAIN", "Roblox update found. Installing Roblox {}", version);
