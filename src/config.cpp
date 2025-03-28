@@ -47,7 +47,8 @@ void Config::Load(const std::filesystem::path& path) {
                 .fix_fog = ef["fix_fog"],
                 .post_fx = ef["post_fx"],
                 .better_vision = ef["better_vision"],
-                .disable_ads = ef["disable_ads"]
+                .disable_ads = ef["disable_ads"],
+                .disable_fullscreen_titlebar = ef["disable_fullscreen_titlebar"]
             };
         }
     } catch (std::exception ex) {
@@ -81,7 +82,8 @@ void Config::Save(const std::filesystem::path& path) {
         { "fix_fog", qs.fix_fog },
         { "post_fx", qs.post_fx },
         { "better_vision", qs.better_vision },
-        { "disable_ads", qs.disable_ads }
+        { "disable_ads", qs.disable_ads },
+        { "disable_fullscreen_titlebar", qs.disable_fullscreen_titlebar }
     };
 
     std::string s = j.dump(4);

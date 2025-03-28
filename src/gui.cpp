@@ -429,6 +429,11 @@ void SettingsGUI::Render() {
             ImGui::SameLine();
             HelpText("Disable to preserve rendering quality");
 
+            // Disable fullscreen titlebar
+            ImGui::Checkbox("Disable fullscreen titlebar", &easy_flags->disable_fullscreen_titlebar);
+            ImGui::SameLine();
+            HelpText("Disables the bar that shows when the cursor is at the top of screen");
+
             // Shadows
             ImGui::Checkbox("Enable shadows", &easy_flags->shadows);
             

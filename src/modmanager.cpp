@@ -160,6 +160,11 @@ void ModManager::ApplyFastFlags() {
         flags["FFlagAdServiceEnabled"] = "False";
     }
 
+    // Disable fullscreen titlebar
+    if (easy_flags.disable_fullscreen_titlebar) {
+        flags["FIntFullscreenTitleBarTriggerDelayMillis"] = "10000000";
+    }
+
     // Write fast flags to Game/ClientSettings/ClientAppSettings.json
     auto cas_path = Paths::GameDirectory / "ClientSettings" / "ClientAppSettings.json";
     fs::create_directories(cas_path.parent_path());

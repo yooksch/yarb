@@ -29,6 +29,7 @@ std::vector<std::string> split(std::string string, const std::string& delimeter)
     return result;
 }
 
+#pragma comment(linker, "/SUBSYSTEM:windows /ENTRY:mainCRTStartup")
 int main(int argc, char** argv) {
     // Ensure paths are set and directories are created
     Paths::InitPaths();

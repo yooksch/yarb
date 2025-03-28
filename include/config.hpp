@@ -20,6 +20,7 @@ public:
         bool post_fx = true;
         bool better_vision = false;
         bool disable_ads = true;
+        bool disable_fullscreen_titlebar = false;
     };
 
     std::string installed_version;

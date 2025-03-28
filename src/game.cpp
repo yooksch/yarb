@@ -5,6 +5,7 @@
 #include "log.hpp"
 #include "modmanager.hpp"
 #include "paths.hpp"
+
 #include <cstring>
 #include <exception>
 #include <filesystem>
@@ -16,8 +17,6 @@
 #include <sstream>
 #include <string>
 #include <thread>
-#include <winnt.h>
-#include <winreg.h>
 #include <windows.h>
 #include <TlHelp32.h>
 #include <zip.h>
