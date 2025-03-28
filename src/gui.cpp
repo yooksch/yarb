@@ -210,12 +210,86 @@ void SettingsGUI::Render() {
     if (ImGui::BeginTabItem("Start")) {
         if (ImGui::CollapsingHeader("Control", ImGuiTreeNodeFlags_DefaultOpen)) {
             static bool safe_mode;
+            static enum { GettingVersion, VerifyingFileIntegrity, DownloadingManifest, DownloadingPackages } start_stage;
+            static int progress_max = 0;
+            static int progress_current = 0;
+            static bool started = false;
             if (ImGui::Button("Start Roblox")) {
                 config->Save(Paths::ConfigFile);
-                std::thread([] {
+                start_stage = GettingVersion;
+
+                std::thread([=] {
+                    auto version = Game::GetLatestRobloxVersion();
+                    if (version == config->installed_version) {
+                        Log::Info("SettingsGUI::Render", "Roblox is up to date");
+                        if (config->verify_integrity_on_launch) {
+                            start_stage = VerifyingFileIntegrity;
+                            Game::VerifyFileIntegrity([&](int current, int total) {
+                                progress_current = current;
+                                progress_max = total;
+                            });
+                        }
+                    } else {
+                        start_stage = DownloadingManifest;
+                        auto manifest = Game::GetManifest(version);
+                        progress_current = 0;
+                        progress_max = manifest.size();
+
+                        start_stage = DownloadingPackages;
+                        Game::Download(
+                            version,
+                            manifest,
+                            config->efficient_download,
+                            [&](int progress) {
+                                progress_current = progress;
+                            }
+                        );
+                    }
+
+                    started = true;
                     Game::Start("--app");
                 }).detach();
+                ImGui::OpenPopup("Starting Roblox");
             }
+
+            if (ImGui::BeginPopupModal("Starting Roblox", NULL,
+                ImGuiWindowFlags_AlwaysAutoResize
+                | ImGuiWindowFlags_NoResize
+                | ImGuiWindowFlags_NoMove
+                | ImGuiWindowFlags_NoCollapse
+                | ImGuiWindowFlags_NoSavedSettings
+            )) {
+                switch (start_stage) {
+                case GettingVersion:
+                    ImGui::Text("Stage: Getting latest version");
+                    break;
+                case VerifyingFileIntegrity:
+                    ImGui::Text("Stage: Verifying file integrity");
+                    if (progress_max == 0) {
+                        ImGui::ProgressBar(0);
+                    } else {
+                        ImGui::ProgressBar((float)progress_current / progress_max);
+                    }
+                    break;
+                case DownloadingManifest:
+                    ImGui::Text("Stage: Downloading manifest");
+                    break;
+                case DownloadingPackages:
+                    ImGui::Text("Stage: Downloading packages");
+                    if (progress_max == 0) {
+                        ImGui::ProgressBar(0);
+                    } else {
+                        ImGui::ProgressBar((float)progress_current / progress_max);
+                    }
+                    break;
+                }
+
+                if (started)
+                    ImGui::CloseCurrentPopup();
+
+                ImGui::EndPopup();
+            }
+
             ImGui::SameLine();
             ImGui::Checkbox("Safe Mode", &safe_mode);
             ImGui::SameLine();
@@ -230,7 +304,8 @@ void SettingsGUI::Render() {
                 | ImGuiWindowFlags_NoResize
                 | ImGuiWindowFlags_NoMove
                 | ImGuiWindowFlags_NoCollapse
-                | ImGuiWindowFlags_NoSavedSettings)) {
+                | ImGuiWindowFlags_NoSavedSettings
+            )) {
                 enum State {
                     Uninstalling,
                     GettingVersion,
@@ -257,7 +332,7 @@ void SettingsGUI::Render() {
                         state = DownloadingPackages;
                         package_count = manifest.size();
 
-                        Game::Download(version, manifest, Paths::GameDirectory, false, [](int p) {
+                        Game::Download(version, manifest, false, [](int p) {
                             packages_installed = p;
                         });
 
@@ -647,22 +722,34 @@ void SettingsGUI::Render() {
     ImGui::End();
 }
 
-void UpdateGUI::Render() {
+void LaunchGUI::Render() {
     ImGui::SetNextWindowSize({ (float)window_width, (float)window_width });
     ImGui::SetNextWindowPos({ 0, 0 });
     ImGui::Begin("Main", NULL,
         ImGuiWindowFlags_NoTitleBar
         | ImGuiWindowFlags_NoMove
         | ImGuiWindowFlags_NoResize
-        | ImGuiWindowFlags_NoDecoration);
+        | ImGuiWindowFlags_NoDecoration
+        | ImGuiWindowFlags_NoSavedSettings);
 
     switch (Stage) {
+    case VerifyingFileIntegrity:
+        ImGui::Text("Stage: Verifying file integrity");
+        if (progress_max == 0) {
+            ImGui::ProgressBar(0);
+        } else {
+            ImGui::ProgressBar((float)progress_current / progress_max);
+        }
+        break;
+    case GettingLatestVersion:
+        ImGui::Text("Stage: Getting latest version");
+        break;
     case DownloadingManifest:
         ImGui::Text("Stage: Downloading manifest");
         break;
     case DownloadingPackages:
         ImGui::Text("Stage: Downloading packages");
-        ImGui::ProgressBar((float)packages_installed / package_count);
+        ImGui::ProgressBar((float)progress_current / progress_max);
         break;
     }
 

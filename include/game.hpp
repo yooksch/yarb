@@ -26,10 +26,11 @@ namespace Game {
 
     std::string GetLatestRobloxVersion();
     std::vector<ManifestEntry> GetManifest(std::string& version);
-    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, const std::filesystem::path& install_dir, bool efficient_download, std::function<void(int)> progress_callback);
+    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, bool efficient_download, std::function<void(int)> progress_callback);
+    void DownloadPackage(const std::string& version, const ManifestEntry& package);
     void RegisterProtocolHandler(const char* protocol, const std::filesystem::path& executable);
     bool Start(std::string args, bool safe_mode = false);
-
+    void VerifyFileIntegrity(std::function<void(int, int)> progress_callback);
     void LoadSavedSignatures();
     void SaveSignatures();
 }

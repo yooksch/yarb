@@ -11,6 +11,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <processthreadsapi.h>
 #include <sstream>
 #include <string>
@@ -96,7 +97,7 @@ namespace Game {
         return entries;
     }
 
-    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, const std::filesystem::path& install_dir, bool efficient_download, std::function<void(int)> progress_callback) {
+    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, bool efficient_download, std::function<void(int)> progress_callback) {
         std::vector<std::thread> threads;
         int packages_installed = 0;
         for (const ManifestEntry& entry : manifest) {
@@ -111,61 +112,12 @@ namespace Game {
             }
 
             threads.emplace_back(std::thread([&] {
-                auto res = Http::Get(std::format("{}/{}-{}", CDN_URL, version, entry.name).c_str());
-                if (!PACKAGE_MAP.contains(entry.name)) return;
-                auto path = install_dir / PACKAGE_MAP.at(entry.name);
-
-                // extract zip
-                zip_error_t err;
-                zip_source_t* src = zip_source_buffer_create(res.bytes.data(), res.bytes.size(), 0, &err);
-
-                if (src == nullptr) {
-                    throw std::exception(std::format("Error creating zip buffer: {}", zip_error_strerror(&err)).c_str());
+                try {
+                    DownloadPackage(version, entry);
+                } catch (std::exception ex) {
+                    Log::Error("Game::Download", "Failed to install package {}", std::string(entry.name));
                 }
-
-                zip_t* archive = zip_open_from_source(src, 0, &err);
-
-                if (archive == nullptr) {
-                    throw std::exception(std::format("Error opening zip: {}", zip_error_strerror(&err)).c_str());
-                }
-
-                zip_int64_t num_entries = zip_get_num_entries(archive, 0);
-                for (zip_int64_t i = 0; i < num_entries; i++) {
-                    zip_stat_t stat;
-                    if (zip_stat_index(archive, i, 0, &stat) == 0) {
-                        zip_file_t* file = zip_fopen_index(archive, i, 0);
-                        if (file != nullptr) {
-                            std::vector<char> content(stat.size);
-                            zip_fread(file, content.data(), stat.size);
-                            zip_fclose(file);
-
-                            auto name = std::string(stat.name);
-                            if (name.starts_with("\\"))
-                                name = name.substr(1);
-                            
-                            auto file_path = path / name;
-                            std::filesystem::create_directories(file_path.parent_path());
-
-                            FILE_SIGNATURES[file_path.string()] = FileSignature {
-                                .sha256 = Crypto::ComputeSHA256(content),
-                                .origin_package = entry.name
-                            };
-
-                            std::ofstream ofstream(file_path, std::ios::binary);
-                            ofstream.write(content.data(), content.size());
-                            ofstream.close();
-                        }
-                    }
-                }
-
-                zip_close(archive);
-                zip_source_close(src);
-
-                // Save package signature to PACKAGE_HASHES
-                PACKAGE_SIGNATURES[entry.name] = entry.signature;
-
                 progress_callback(++packages_installed);
-                Log::Debug("Game::Download", "Downloaded package {}", entry.name);
             }));
         }
 
@@ -183,11 +135,68 @@ namespace Game {
 	<BaseUrl>http://www.roblox.com</BaseUrl>
 </Settings>
         )";
-        std::ofstream stream(std::filesystem::path(install_dir).append("AppSettings.xml"));
+        std::ofstream stream(std::filesystem::path(Paths::GameDirectory).append("AppSettings.xml"));
         stream.write(app_settings_xml, strlen(app_settings_xml));
 
         Config::GetInstance()->installed_version = version;
         Log::Info("Deployment::Download", "Downloaded Roblox {}", version);
+    }
+
+    void DownloadPackage(const std::string &version, const ManifestEntry &package) {
+        auto res = Http::Get(std::format("{}/{}-{}", CDN_URL, version, package.name).c_str());
+        if (!PACKAGE_MAP.contains(package.name)) return;
+        auto path = Paths::GameDirectory / PACKAGE_MAP.at(package.name);
+
+        // extract zip
+        zip_error_t err;
+        zip_source_t* src = zip_source_buffer_create(res.bytes.data(), res.bytes.size(), 0, &err);
+
+        if (src == nullptr) {
+            throw std::exception(std::format("Error creating zip buffer: {}", zip_error_strerror(&err)).c_str());
+        }
+
+        zip_t* archive = zip_open_from_source(src, 0, &err);
+
+        if (archive == nullptr) {
+            throw std::exception(std::format("Error opening zip: {}", zip_error_strerror(&err)).c_str());
+        }
+
+        zip_int64_t num_entries = zip_get_num_entries(archive, 0);
+        for (zip_int64_t i = 0; i < num_entries; i++) {
+            zip_stat_t stat;
+            if (zip_stat_index(archive, i, 0, &stat) == 0) {
+                zip_file_t* file = zip_fopen_index(archive, i, 0);
+                if (file != nullptr) {
+                    std::vector<char> content(stat.size);
+                    zip_fread(file, content.data(), stat.size);
+                    zip_fclose(file);
+
+                    auto name = std::string(stat.name);
+                    if (name.starts_with("\\"))
+                        name = name.substr(1);
+                    
+                    auto file_path = path / name;
+                    std::filesystem::create_directories(file_path.parent_path());
+
+                    FILE_SIGNATURES[file_path.string()] = FileSignature {
+                        .sha256 = Crypto::ComputeSHA256(content),
+                        .origin_package = package.name
+                    };
+
+                    std::ofstream ofstream(file_path, std::ios::binary);
+                    ofstream.write(content.data(), content.size());
+                    ofstream.close();
+                }
+            }
+        }
+
+        zip_close(archive);
+        zip_source_close(src);
+
+        // Save package signature to PACKAGE_HASHES
+        PACKAGE_SIGNATURES[package.name] = package.signature;
+
+        Log::Debug("Game::Download", "Downloaded package {}", package.name);
     }
 
     void RegisterProtocolHandler(const char *protocol, const std::filesystem::path &executable) {
@@ -344,6 +353,55 @@ namespace Game {
             ModManager::GetInstance()->RemoveFastFlags();
         }
         return true;
+    }
+
+    void VerifyFileIntegrity(std::function<void(int, int)> progress_callback) {
+        std::vector<std::filesystem::path> files;
+        auto walk_dir = [&](this auto&& self, const std::filesystem::path& path) -> void {
+            for (const auto& entry : std::filesystem::directory_iterator(path)) {
+                if (entry.is_regular_file()) {
+                    files.emplace_back(entry.path());
+                } else if (entry.is_directory()) {
+                    self(entry.path());
+                }
+            }
+        };
+
+        Log::Info("Game::VerifyFileIntegrity", "Indexing game files...");
+        walk_dir(Paths::GameDirectory);
+
+        Log::Info("Game::VerifyFileIntegrity", "Verifying {} files...", files.size());
+        progress_callback(0, files.size());
+        int progress = 0;
+        for (const auto& path : files) {
+            auto ps = path.string();
+            if (FILE_SIGNATURES.contains(ps)) {
+                std::ifstream file(ps, std::ios::binary);
+                std::vector<char> file_content {
+                    std::istreambuf_iterator<char>(file),
+                    std::istreambuf_iterator<char>()
+                };
+                auto actual_sig = Crypto::ComputeSHA256(file_content);
+                auto expected_signature = FILE_SIGNATURES[ps];
+
+                if (actual_sig != expected_signature.sha256) {
+                    Log::Warning(
+                        "Game::VerifyFileIntegrity",
+                        "File {} is corrupt. Reinstalling source package",
+                        std::filesystem::relative(path, Paths::GameDirectory).string()
+                    );
+                    DownloadPackage(Config::GetInstance()->installed_version, ManifestEntry {
+                        .name = expected_signature.origin_package,
+                        .signature = PACKAGE_SIGNATURES[expected_signature.origin_package],
+                        .packed_size = 0,
+                        .size = 0
+                    });
+                }
+                progress_callback(++progress, files.size());
+            }
+        }
+
+        Log::Info("Game::VerifyFileIntegrity", "Verification complete");
     }
 
     void LoadSavedSignatures() {

@@ -16,12 +16,12 @@ public:
     void Render() override;
 };
 
-class UpdateGUI : public GUI {
+class LaunchGUI : public GUI {
 public:
-    enum Stage { DownloadingManifest, DownloadingPackages } Stage;
-    int package_count = 100;
-    int packages_installed = 0;
+    enum Stage { VerifyingFileIntegrity, GettingLatestVersion, DownloadingManifest, DownloadingPackages } Stage;
+    int progress_max = 0;
+    int progress_current = 0;
 
-    UpdateGUI(int width, int height) : GUI(width, height) {}
+    LaunchGUI(int width, int height) : GUI(width, height) {}
     void Render() override;
 };

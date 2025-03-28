@@ -73,44 +73,49 @@ int main(int argc, char** argv) {
     if (command == "update") {
         auto version = Game::GetLatestRobloxVersion();
         if (config->installed_version == version) {
-            std::cout << "Roblox is up-to-date!" << std::endl;
+            std::cout << "Roblox is up to date!" << std::endl;
         } else {
             Log::Info("MAIN", "Roblox update found. Installing Roblox {}", version);
             auto manifest = Game::GetManifest(version);
-            Game::Download(version, manifest, Paths::GameDirectory, config->efficient_download, [](int _){});
+            Game::Download(version, manifest, config->efficient_download, [](int _){});
         }
     } else if (command == "gui") {
         SettingsGUI gui(700, 500);
         gui.Show();
     } else  if (command == "launch") {
-        // Ensure roblox is up to date
-        auto version = Game::GetLatestRobloxVersion();
-        if (config->installed_version == version) {
-            Log::Info("MAIN", "Roblox is up-to-date");
-        } else {
-            Log::Info("MAIN", "Roblox update found. Installing Roblox {}", version);
+        {
+            LaunchGUI gui(350, 100);
 
-            UpdateGUI gui(350, 100);
-            
             std::thread([&] {
-                try {
-                gui.Stage = UpdateGUI::DownloadingManifest;
-                auto manifest = Game::GetManifest(version);
-                gui.package_count = manifest.size();
-                gui.Stage = UpdateGUI::DownloadingPackages;
-                Game::Download(
-                    version,
-                    manifest,
-                    Paths::GameDirectory,
-                    config->efficient_download,
-                    [&](int p){
-                        gui.packages_installed = p;
+                gui.Stage = LaunchGUI::GettingLatestVersion;
+                auto version = Game::GetLatestRobloxVersion();
+                if (version == config->installed_version) {
+                    Log::Info("MAIN", "Roblox is up to date");
+                    if (config->verify_integrity_on_launch) {
+                        gui.Stage = LaunchGUI::VerifyingFileIntegrity;
+                        Game::VerifyFileIntegrity([&](int verified, int total) {
+                            gui.progress_current = verified;
+                            gui.progress_max = total;
+                        });
                     }
-                );
+                } else {
+                    Log::Info("MAIN", "Roblox update found. Downloading {}", version);
+                    gui.Stage = LaunchGUI::DownloadingManifest;
+                    auto manifest = Game::GetManifest(version);
+                    gui.progress_max = manifest.size();
+                    gui.progress_current = 0;
+                    gui.Stage = LaunchGUI::DownloadingPackages;
+                    Game::Download(
+                        version,
+                        manifest,
+                        config->efficient_download,
+                        [&](int p) {
+                            gui.progress_current = p;
+                        }
+                    );
+                }
+
                 gui.quit = true;
-            } catch (std::exception ex) {
-                std::cout << ex.what() << "\n";
-            }
             }).detach();
 
             gui.Show();
