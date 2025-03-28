@@ -96,7 +96,7 @@ namespace Game {
         return entries;
     }
 
-    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, const std::filesystem::path& install_dir, bool efficient_download, void (*progress_callback)(int)) {
+    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, const std::filesystem::path& install_dir, bool efficient_download, std::function<void(int)> progress_callback) {
         std::vector<std::thread> threads;
         int packages_installed = 0;
         for (const ManifestEntry& entry : manifest) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -25,7 +26,7 @@ namespace Game {
 
     std::string GetLatestRobloxVersion();
     std::vector<ManifestEntry> GetManifest(std::string& version);
-    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, const std::filesystem::path& install_dir, bool efficient_download, void (*progress_callback)(int));
+    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, const std::filesystem::path& install_dir, bool efficient_download, std::function<void(int)> progress_callback);
     void RegisterProtocolHandler(const char* protocol, const std::filesystem::path& executable);
     bool Start(std::string args, bool safe_mode = false);
 

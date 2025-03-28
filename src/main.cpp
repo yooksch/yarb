@@ -8,6 +8,7 @@
 #include <chrono>
 #include <filesystem>
 #include <string>
+#include <thread>
 #include <windows.h>
 #include <format>
 
@@ -84,12 +85,35 @@ int main(int argc, char** argv) {
     } else  if (command == "launch") {
         // Ensure roblox is up to date
         auto version = Game::GetLatestRobloxVersion();
-        if (config->installed_version == version) {
+        if (config->installed_version != version) {
             Log::Info("MAIN", "Roblox is up-to-date");
         } else {
             Log::Info("MAIN", "Roblox update found. Installing Roblox {}", version);
-            auto manifest = Game::GetManifest(version);
-            Game::Download(version, manifest, Paths::GameDirectory, config->efficient_download, [](int _){});
+
+            UpdateGUI gui(350, 100);
+            
+            std::thread([&] {
+                try {
+                gui.Stage = UpdateGUI::DownloadingManifest;
+                auto manifest = Game::GetManifest(version);
+                gui.package_count = manifest.size();
+                gui.Stage = UpdateGUI::DownloadingPackages;
+                Game::Download(
+                    version,
+                    manifest,
+                    Paths::GameDirectory,
+                    config->efficient_download,
+                    [&](int p){
+                        gui.packages_installed = p;
+                    }
+                );
+                gui.quit = true;
+            } catch (std::exception ex) {
+                std::cout << ex.what() << "\n";
+            }
+            }).detach();
+
+            gui.Show();
         }
 
         if (argc < 3) {

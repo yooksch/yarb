@@ -2,6 +2,8 @@
 
 class GUI {
 public:
+    bool quit = false;
+
     GUI(int width, int height);
     ~GUI();
     virtual void Render() = 0;
@@ -14,8 +16,12 @@ public:
     void Render() override;
 };
 
-class LoadingScreenGUI : public GUI {
+class UpdateGUI : public GUI {
 public:
-    LoadingScreenGUI(int width, int height) : GUI(width, height) {}
+    enum Stage { DownloadingManifest, DownloadingPackages } Stage;
+    int package_count = 100;
+    int packages_installed = 0;
+
+    UpdateGUI(int width, int height) : GUI(width, height) {}
     void Render() override;
 };

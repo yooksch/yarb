@@ -127,6 +127,9 @@ GUI::GUI(int width, int height) {
     ImGui::StyleColorsDark();
     io.Fonts->AddFontFromMemoryCompressedTTF(INTER_MEDIUM_DATA, INTER_MEDIUM_SIZE, 16.0f, NULL, io.Fonts->GetGlyphRangesDefault());
 
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowBorderSize = 0;
+
     ImGui_ImplWin32_InitForOpenGL(hWnd);
     ImGui_ImplOpenGL3_Init();
 }
@@ -149,7 +152,6 @@ GUI::~GUI() {
 }
 
 void GUI::Show() {
-    bool quit = false;
     while (!quit) {
         MSG msg;
         while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
@@ -645,10 +647,24 @@ void SettingsGUI::Render() {
     ImGui::End();
 }
 
-void LoadingScreenGUI::Render() {
-    ImGui::Begin("Foo");
+void UpdateGUI::Render() {
+    ImGui::SetNextWindowSize({ (float)window_width, (float)window_width });
+    ImGui::SetNextWindowPos({ 0, 0 });
+    ImGui::Begin("Main", NULL,
+        ImGuiWindowFlags_NoTitleBar
+        | ImGuiWindowFlags_NoMove
+        | ImGuiWindowFlags_NoResize
+        | ImGuiWindowFlags_NoDecoration);
 
-    ImGui::Button("Hello");
+    switch (Stage) {
+    case DownloadingManifest:
+        ImGui::Text("Stage: Downloading manifest");
+        break;
+    case DownloadingPackages:
+        ImGui::Text("Stage: Downloading packages");
+        ImGui::ProgressBar((float)packages_installed / package_count);
+        break;
+    }
 
     ImGui::End();
 }
