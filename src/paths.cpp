@@ -13,6 +13,7 @@ std::filesystem::path Paths::GameDirectory = RootDirectory / "Game";
 std::filesystem::path Paths::ModsDirectory = RootDirectory / "Mods";
 std::filesystem::path Paths::LogFile = RootDirectory / "latest.log";
 std::filesystem::path Paths::ConfigFile = RootDirectory / "config.json";
+std::filesystem::path Paths::SignaturesFile = RootDirectory / "hashes.json";
 
 void Paths::InitPaths() {
     PWSTR local_app_data;
@@ -23,6 +24,7 @@ void Paths::InitPaths() {
         ModsDirectory = RootDirectory / "Mods";
         LogFile = RootDirectory / "latest.log";
         ConfigFile = RootDirectory / "config.json";
+        SignaturesFile = RootDirectory / "hashes.json";
 
         // Create directories
         std::filesystem::create_directories(GameDirectory);

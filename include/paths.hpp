@@ -9,6 +9,7 @@ public:
     static std::filesystem::path ModsDirectory;
     static std::filesystem::path LogFile;
     static std::filesystem::path ConfigFile;
+    static std::filesystem::path SignaturesFile;
 
     static void InitPaths();
 };

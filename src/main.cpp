@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <filesystem>
 #include <string>
 #include <windows.h>
 #include <format>
@@ -46,6 +47,14 @@ int main(int argc, char** argv) {
         Log::SetLevel(Log::LEVEL_ERROR);
     }
 
+    // Load signatures
+    try {
+    if (std::filesystem::exists(Paths::SignaturesFile))
+        Game::LoadSavedSignatures();
+    } catch (std::exception ex) {
+        Log::Error("MAIN", "Failed to load signatures from file ({})", ex.what()) ;
+    }
+
     // Register protocol handlers
     Game::RegisterProtocolHandler("roblox", argv[0]);
     Game::RegisterProtocolHandler("roblox-player", argv[0]);
@@ -65,8 +74,9 @@ int main(int argc, char** argv) {
         if (config->installed_version == version) {
             std::cout << "Roblox is up-to-date!" << std::endl;
         } else {
+            Log::Info("MAIN", "Roblox update found. Installing Roblox {}", version);
             auto manifest = Game::GetManifest(version);
-            Game::Download(version, manifest, Paths::GameDirectory, [](int _){});
+            Game::Download(version, manifest, Paths::GameDirectory, config->efficient_download, [](int _){});
         }
     } else if (command == "gui") {
         SettingsGUI gui(700, 500);
@@ -79,7 +89,7 @@ int main(int argc, char** argv) {
         } else {
             Log::Info("MAIN", "Roblox update found. Installing Roblox {}", version);
             auto manifest = Game::GetManifest(version);
-            Game::Download(version, manifest, Paths::GameDirectory, [](int _){});
+            Game::Download(version, manifest, Paths::GameDirectory, config->efficient_download, [](int _){});
         }
 
         if (argc < 3) {

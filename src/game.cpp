@@ -96,11 +96,19 @@ namespace Game {
         return entries;
     }
 
-    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, const std::filesystem::path& install_dir, void (*progress_callback)(int)) {
+    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, const std::filesystem::path& install_dir, bool efficient_download, void (*progress_callback)(int)) {
         std::vector<std::thread> threads;
         int packages_installed = 0;
         for (const ManifestEntry& entry : manifest) {
             if (entry.name == "RobloxPlayerLauncher.exe") continue;
+
+            // Skip package which didn't change
+            if (efficient_download && PACKAGE_SIGNATURES.contains(entry.name)) {
+                if (PACKAGE_SIGNATURES[entry.name] == entry.signature) {
+                    Log::Debug("Game::Download", "Skipped {} - Signatures are identical", entry.name);
+                    continue;
+                }
+            }
 
             threads.emplace_back(std::thread([&] {
                 auto res = Http::Get(std::format("{}/{}-{}", CDN_URL, version, entry.name).c_str());
@@ -138,10 +146,10 @@ namespace Game {
                             auto file_path = path / name;
                             std::filesystem::create_directories(file_path.parent_path());
 
-                            Config::GetInstance()->file_hashes.emplace(file_path.string(), Config::FileHash {
+                            FILE_SIGNATURES[file_path.string()] = FileSignature {
                                 .sha256 = Crypto::ComputeSHA256(content),
                                 .origin_package = entry.name
-                            });
+                            };
 
                             std::ofstream ofstream(file_path, std::ios::binary);
                             ofstream.write(content.data(), content.size());
@@ -153,14 +161,19 @@ namespace Game {
                 zip_close(archive);
                 zip_source_close(src);
 
+                // Save package signature to PACKAGE_HASHES
+                PACKAGE_SIGNATURES[entry.name] = entry.signature;
+
                 progress_callback(++packages_installed);
-                Log::Debug("Deployment::Download", "Downloaded package {}", entry.name);
+                Log::Debug("Game::Download", "Downloaded package {}", entry.name);
             }));
         }
 
         for (auto& t : threads) {
             t.join();
         }
+
+        SaveSignatures();
 
         // Write AppSettings.xml
         const char* app_settings_xml = R"(
@@ -331,5 +344,46 @@ namespace Game {
             ModManager::GetInstance()->RemoveFastFlags();
         }
         return true;
+    }
+
+    void LoadSavedSignatures() {
+        PACKAGE_SIGNATURES.clear();
+        FILE_SIGNATURES.clear();
+
+        std::ifstream file(Paths::SignaturesFile);
+        json j = json::parse(file);
+
+        if (auto ps = j["package_signatures"]; ps.is_object()) {
+            for (const auto& entry : ps.items()) {
+                PACKAGE_SIGNATURES.emplace(entry.key(), entry.value());
+            }
+        }
+
+        if (auto fs = j["file_signatures"]; fs.is_object()) {
+            for (const auto& entry : fs.items()) {
+                FILE_SIGNATURES.emplace(entry.key(), FileSignature {
+                    .sha256 = entry.value()["sha256"],
+                    .origin_package = entry.value()["origin_package"]
+                });
+            }
+        }
+    }
+
+    void SaveSignatures() {
+        json j;
+
+        for (const auto& entry : PACKAGE_SIGNATURES) {
+            j["package_signatures"][entry.first] = entry.second;
+        }
+
+        for (const auto& entry : FILE_SIGNATURES) {
+            j["file_signatures"][entry.first] = {
+                { "sha256", entry.second.sha256 },
+                { "origin_package", entry.second.origin_package }
+            };
+        }
+
+        std::ofstream file(Paths::SignaturesFile);
+        file << j.dump(4);
     }
 }

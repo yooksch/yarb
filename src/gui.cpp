@@ -255,7 +255,7 @@ void SettingsGUI::Render() {
                         state = DownloadingPackages;
                         package_count = manifest.size();
 
-                        Game::Download(version, manifest, Paths::GameDirectory, [](int p) {
+                        Game::Download(version, manifest, Paths::GameDirectory, false, [](int p) {
                             packages_installed = p;
                         });
 
@@ -308,6 +308,10 @@ void SettingsGUI::Render() {
             ImGui::Checkbox("Query server location", &config->query_server_location);
             ImGui::SameLine();
             HelpText("Query the Roblox server location");
+
+            ImGui::Checkbox("Efficient downloads", &config->efficient_download);
+            ImGui::SameLine();
+            HelpText("Only download packages that changed. Control>Reinstall ignores this setting.");
 
             ImGui::Checkbox("Ensure file integrity", &config->verify_integrity_on_launch);
             ImGui::SameLine();

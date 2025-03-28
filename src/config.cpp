@@ -7,12 +7,12 @@
 using json = nlohmann::json;
 
 Config::Config() {
-    this->file_hashes = {};
     this->installed_version = "";
     this->verify_integrity_on_launch = false;
     this->query_server_location = false;
     this->debug_mode = false;
     this->prevent_multi_launch = true;
+    this->efficient_download = true;
 }
 
 Config* Config::GetInstance() {
@@ -31,15 +31,7 @@ void Config::Load(const std::filesystem::path& path) {
         this->query_server_location = j["query_server_location"];
         this->debug_mode = j["debug_mode"];
         this->fast_flags = j["fast_flags"];
-        
-        if (auto file_hashes = j["file_hashes"]; file_hashes.is_object() && file_hashes.size() > 0) {
-            for (const auto& member : file_hashes.items()) {
-                this->file_hashes.emplace(member.key(), Config::FileHash {
-                    .sha256 = member.value()["sha256"],
-                    .origin_package = member.value()["origin_package"]
-                });
-            }
-        }
+        this->efficient_download = j["efficient_download"];
 
         if (auto ef = j["easy_flags"]; ef.is_object()) {
             this->easy_flags = Config::EasyFlags {
@@ -73,6 +65,7 @@ void Config::Save(const std::filesystem::path& path) {
     j["query_server_location"] = this->query_server_location;
     j["debug_mode"] = this->debug_mode;
     j["fast_flags"] = this->fast_flags;
+    j["efficient_download"] = this->efficient_download;
 
     auto qs = this->easy_flags;
     j["easy_flags"] = json {
@@ -90,13 +83,6 @@ void Config::Save(const std::filesystem::path& path) {
         { "better_vision", qs.better_vision },
         { "disable_ads", qs.disable_ads }
     };
-    
-    for (const auto& file_hash : this->file_hashes) {
-        j["file_hashes"][file_hash.first] = json{
-            { "sha256", file_hash.second.sha256 },
-            { "origin_package", file_hash.second.origin_package }
-        };
-    }
 
     std::string s = j.dump(4);
     stream.write(s.data(), s.size());
