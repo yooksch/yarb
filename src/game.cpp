@@ -64,6 +64,8 @@ namespace Game {
 
     std::vector<ManifestEntry> GetManifest(std::string& version) {
         auto res = Http::Get(std::format("{}/{}-rbxPkgManifest.txt", CDN_URL, version).c_str());
+        if (res.status_code != 200) throw std::exception("Failed to get manifest");
+
         std::istringstream stream(res.text);
         std::string v;
         
@@ -97,9 +99,9 @@ namespace Game {
         return entries;
     }
 
-    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, bool efficient_download, std::function<void(int)> progress_callback) {
+    void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, bool efficient_download, std::function<void(size_t)> progress_callback) {
         std::vector<std::thread> threads;
-        int packages_installed = 0;
+        size_t packages_installed = 0;
         for (const ManifestEntry& entry : manifest) {
             if (entry.name == "RobloxPlayerLauncher.exe") continue;
 
@@ -139,7 +141,7 @@ namespace Game {
         stream.write(app_settings_xml, strlen(app_settings_xml));
 
         Config::GetInstance()->installed_version = version;
-        Log::Info("Deployment::Download", "Downloaded Roblox {}", version);
+        Log::Info("Game::Download", "Downloaded Roblox {}", version);
     }
 
     void DownloadPackage(const std::string &version, const ManifestEntry &package) {
@@ -213,7 +215,7 @@ namespace Game {
             NULL
         );
         if (result != ERROR_SUCCESS) {
-            Log::Error("Deployment::RegisterProtocolHandler", "Failed to register protocol handler");
+            Log::Error("Game::RegisterProtocolHandler", "Failed to register protocol handler");
             return;
         }
 
@@ -248,7 +250,7 @@ namespace Game {
             NULL
         );
         if (result != ERROR_SUCCESS) {
-            Log::Error("Deployment::RegisterProtocolHandler", "Failed to register protocol handler");
+            Log::Error("Game::RegisterProtocolHandler", "Failed to register protocol handler");
             return;
         }
 
@@ -275,7 +277,7 @@ namespace Game {
             NULL
         );
         if (result != ERROR_SUCCESS) {
-            Log::Error("Deployment::RegisterProtocolHandler", "Failed to register protocol handler");
+            Log::Error("Game::RegisterProtocolHandler", "Failed to register protocol handler");
             return;
         }
 
@@ -292,6 +294,7 @@ namespace Game {
     }
 
     bool Start(std::string args, bool safe_mode) {
+        Log::Info("Game::Start", "Starting Roblox...");
         // Check if roblox is already running
         if (Config::GetInstance()->prevent_multi_launch) {
             PROCESSENTRY32 pe;
@@ -355,7 +358,29 @@ namespace Game {
         return true;
     }
 
-    void VerifyFileIntegrity(std::function<void(int, int)> progress_callback) {
+    void Bootstrap(bool efficient_download, std::function<void (BootstrapStatusUpdate)> callback) {
+        callback(BootstrapStatusUpdate { GettingVersion });
+        auto version = GetLatestRobloxVersion();
+        if (version == Config::GetInstance()->installed_version) {
+            Log::Info("Game::Bootstrap", "Roblox is up to date");
+            if (Config::GetInstance()->verify_integrity_on_launch) {
+                VerifyFileIntegrity([&](size_t current, size_t total) {
+                    callback(BootstrapStatusUpdate { VerifyingFileIntegrity, current, total });
+                });
+            }
+        } else {
+            callback(BootstrapStatusUpdate { GettingManifest });
+            auto manifest = GetManifest(version);
+            callback(BootstrapStatusUpdate { DownloadingPackages, 0, manifest.size() });
+            Download(version, manifest, efficient_download, [&](size_t p) {
+                callback(BootstrapStatusUpdate { DownloadingPackages, p, manifest.size() });
+            });
+        }
+
+        callback(BootstrapStatusUpdate { Complete });
+    }
+
+    void VerifyFileIntegrity(std::function<void(size_t, size_t)> progress_callback) {
         std::vector<std::filesystem::path> files;
         auto walk_dir = [&](this auto&& self, const std::filesystem::path& path) -> void {
             for (const auto& entry : std::filesystem::directory_iterator(path)) {
@@ -372,7 +397,7 @@ namespace Game {
 
         Log::Info("Game::VerifyFileIntegrity", "Verifying {} files...", files.size());
         progress_callback(0, files.size());
-        int progress = 0;
+        size_t progress = 0;
         for (const auto& path : files) {
             auto ps = path.string();
             if (FILE_SIGNATURES.contains(ps)) {

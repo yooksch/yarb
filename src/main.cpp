@@ -83,77 +83,53 @@ int main(int argc, char** argv) {
         SettingsGUI gui(700, 500);
         gui.Show();
     } else  if (command == "launch") {
+        std::string payload = "--app";
+        if (argc >= 3) {
+            payload = argv[2];
+        }
+
+        if (payload != "--app") {
+            std::string launch_args;
+
+            if (payload.starts_with("roblox-player:")) {
+                std::string new_payload;
+                for (const auto& s : split(payload, "+")) {
+                    auto parts = split(s, ":");
+                    std::string key = parts[0];
+                    std::string value = parts[1];
+
+                    if (key == "launchtime") {
+                        auto timestamp = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        value = std::to_string(timestamp);
+                    } else if (key == "channel") {
+                        continue;
+                    }
+
+                    new_payload += std::format("{}:{}+", key, value);
+                }
+                new_payload.erase(new_payload.length());
+                payload = new_payload;
+            } else if (payload.starts_with("roblox:")) {
+                launch_args = std::format("--app --deeplink {}", payload);
+            } else {
+                Log::Error("MAIN", "Payload is invalid");
+                goto exit;
+            }
+        }
+
         {
             LaunchGUI gui(350, 100);
 
             std::thread([&] {
-                gui.Stage = LaunchGUI::GettingLatestVersion;
-                auto version = Game::GetLatestRobloxVersion();
-                if (version == config->installed_version) {
-                    Log::Info("MAIN", "Roblox is up to date");
-                    if (config->verify_integrity_on_launch) {
-                        gui.Stage = LaunchGUI::VerifyingFileIntegrity;
-                        Game::VerifyFileIntegrity([&](int verified, int total) {
-                            gui.progress_current = verified;
-                            gui.progress_max = total;
-                        });
-                    }
-                } else {
-                    Log::Info("MAIN", "Roblox update found. Downloading {}", version);
-                    gui.Stage = LaunchGUI::DownloadingManifest;
-                    auto manifest = Game::GetManifest(version);
-                    gui.progress_max = manifest.size();
-                    gui.progress_current = 0;
-                    gui.Stage = LaunchGUI::DownloadingPackages;
-                    Game::Download(
-                        version,
-                        manifest,
-                        config->efficient_download,
-                        [&](int p) {
-                            gui.progress_current = p;
-                        }
-                    );
-                }
-
-                gui.quit = true;
+                Game::Bootstrap(config->efficient_download, [&](Game::BootstrapStatusUpdate update) {
+                    gui.status = update.status;
+                    gui.progress_current = update.progress_current;
+                    gui.progress_max = update.progress_max;
+                });
             }).detach();
 
             gui.Show();
         }
-
-        if (argc < 3) {
-            Game::Start("--app");
-            goto exit;
-        }
-
-        std::string payload(argv[2]);
-        std::string launch_args;
-
-        if (payload.starts_with("roblox-player:")) {
-            std::string new_payload;
-            for (const auto& s : split(payload, "+")) {
-                auto parts = split(s, ":");
-                std::string key = parts[0];
-                std::string value = parts[1];
-
-                if (key == "launchtime") {
-                    auto timestamp = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
-                    value = std::to_string(timestamp);
-                } else if (key == "channel") {
-                    continue;
-                }
-
-                new_payload += std::format("{}:{}+", key, value);
-            }
-            new_payload.erase(new_payload.length());
-            payload = new_payload;
-        } else if (payload.starts_with("roblox:")) {
-            launch_args = std::format("--app --deeplink {}", payload);
-        } else {
-            Log::Error("MAIN", "Payload is invalid");
-            goto exit;
-        }
-
         Game::Start(payload);
     }
 

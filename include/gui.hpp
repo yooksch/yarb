@@ -1,5 +1,7 @@
 #pragma once
 
+#include "game.hpp"
+
 class GUI {
 public:
     bool quit = false;
@@ -18,7 +20,7 @@ public:
 
 class LaunchGUI : public GUI {
 public:
-    enum Stage { VerifyingFileIntegrity, GettingLatestVersion, DownloadingManifest, DownloadingPackages } Stage;
+    Game::BootstrapStatus status;
     int progress_max = 0;
     int progress_current = 0;
 
