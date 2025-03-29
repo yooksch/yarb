@@ -60,7 +60,7 @@ private:
     
         std::cout << msg << "\n";
         if (log_file != nullptr) {
-            *log_file << msg << "\n";
+            *log_file << msg << std::endl;
         }
     }
 };

@@ -6,6 +6,12 @@
 #include <vector>
 
 namespace Game {
+    struct RobloxUniverseDetails {
+        std::string name;
+        std::string creator;
+        std::string cover_url;
+    };
+
     struct FileSignature {
         std::string sha256;
         std::string origin_package;
@@ -48,4 +54,5 @@ namespace Game {
     void LoadSavedSignatures();
     void SaveSignatures();
     void WatchRobloxLog();
+    RobloxUniverseDetails GetUniverseDetails(int place_id);
 }

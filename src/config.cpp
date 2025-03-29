@@ -32,6 +32,7 @@ void Config::Load(const std::filesystem::path& path) {
         this->debug_mode = j["debug_mode"];
         this->fast_flags = j["fast_flags"];
         this->efficient_download = j["efficient_download"];
+        this->discord_rpc = j["discord_rpc"];
 
         if (auto ef = j["easy_flags"]; ef.is_object()) {
             this->easy_flags = Config::EasyFlags {
@@ -67,6 +68,7 @@ void Config::Save(const std::filesystem::path& path) {
     j["debug_mode"] = this->debug_mode;
     j["fast_flags"] = this->fast_flags;
     j["efficient_download"] = this->efficient_download;
+    j["discord_rpc"] = this->discord_rpc;
 
     auto qs = this->easy_flags;
     j["easy_flags"] = json {

@@ -362,6 +362,10 @@ void SettingsGUI::Render() {
             ImGui::SameLine();
             HelpText("Query the Roblox server location");
 
+            ImGui::Checkbox("Discord Rich Presence", &config->discord_rpc);
+            ImGui::SameLine();
+            HelpText("Shows the game being played on Discord");
+
             ImGui::Checkbox("Efficient downloads", &config->efficient_download);
             ImGui::SameLine();
             HelpText("Only download packages that changed. Control>Reinstall ignores this setting.");

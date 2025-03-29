@@ -1,5 +1,6 @@
 #include "game.hpp"
 #include "config.hpp"
+#include "discordrpc.hpp"
 #include "http.hpp"
 #include "crypto.hpp"
 #include "log.hpp"
@@ -8,6 +9,7 @@
 #include "winhelpers.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <filesystem>
@@ -17,6 +19,7 @@
 #include <iostream>
 #include <iterator>
 #include <processthreadsapi.h>
+#include <regex>
 #include <set>
 #include <sstream>
 #include <string>
@@ -423,12 +426,14 @@ namespace Game {
                     previous_pos = log_file.tellg();
 
                     if (line.contains(" serverId: ")) {
-                        auto last_idx = line.find_last_of(' '); // find last whitespace
-                        auto address = line.substr(last_idx + 1);
+                        static const std::regex regex("serverId: (\\d+\\.)\\|");
+                        std::smatch match;
+                        if (!std::regex_search(line, match, regex)) {
+                            Log::Error("Game::WatchRobloxLog", "Failed to get server ip address");
+                            continue;
+                        }
 
-                        last_idx = address.find_last_of('|'); // find |
-                        auto ip = address.substr(0, last_idx);
-
+                        auto ip = match.str(1);
                         Log::Debug("Game::WatchRobloxLog", "Getting location of {}", ip);
                         auto response = Http::Get(std::format("https://ipinfo.io/{}/json", ip).c_str());
                         if (response.status_code != 200) {
@@ -446,6 +451,20 @@ namespace Game {
 
                         Log::Info("Game::WatchRobloxLog", "Server location: {}", server_location);
                         WinHelpers::SendNotification(L"Server Location", WinHelpers::StringToWideString(server_location));
+                    } else if (line.contains("FLog::GameJoinLoadTime")) {
+                        static const std::regex regex("universeid:(\\d+)");
+                        std::smatch match;
+                        if (std::regex_search(line, match, regex)) {
+                            int universe_id = std::stoi(match.str(1).c_str());
+                            Log::Debug("Game::WatchRobloxLog", "Getting universe details for {}", universe_id);
+                            auto details = GetUniverseDetails(universe_id);
+                            Log::Info("Game::WatchRobloxLog", "Joined universe {}", details.name);
+                            DiscordRPC::GetInstance()->SetActivity(details);
+                        } else {
+                            Log::Warning("Game::WatchRobloxLog", "Failed to get current place id");
+                        }
+                    } else if (line.contains("NetworkClient:Remove")) {
+                        DiscordRPC::GetInstance()->ClearActivity();
                     }
                 }
             } else {
@@ -456,5 +475,36 @@ namespace Game {
             // Clear EOF flag
             log_file.clear();
         }
+    }
+
+    RobloxUniverseDetails GetUniverseDetails(int place_id) {
+        RobloxUniverseDetails details {};
+
+        auto res = Http::Get(std::format("https://games.roblox.com/v1/games?universeIds={}", place_id).c_str());
+        if (res.status_code != 200) {
+            throw new std::exception("Failed to get universe details");
+        }
+
+        json j = json::parse(res.text);
+        auto data = j["data"][0];
+
+        details.name = data["name"];
+        details.creator = data["creator"]["name"];
+
+        auto thumbnail_res = Http::Get(
+            std::format(
+                "https://thumbnails.roblox.com/v1/games/icons?universeIds={}&returnPolicy=PlaceHolder&size=128x128&format=Png&isCircular=false",
+                place_id
+            ).c_str());
+
+        if (thumbnail_res.status_code != 200) {
+            Log::Error("Game::GetUniverseDetails", "Failed to get thumbnail (status code: {})", thumbnail_res.status_code);
+            return details;
+        }
+
+        j = json::parse(thumbnail_res.text);
+        details.cover_url = j["data"][0]["imageUrl"];
+
+        return details;
     }
 }

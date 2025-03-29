@@ -31,6 +31,7 @@ public:
     bool debug_mode;
     bool query_server_location;
     bool efficient_download;
+    bool discord_rpc;
 
     void Save(const std::filesystem::path& path);
     void Load(const std::filesystem::path& path);

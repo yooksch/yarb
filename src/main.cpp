@@ -1,4 +1,5 @@
 #include "config.hpp"
+#include "discordrpc.hpp"
 #include "game.hpp"
 #include "gui.hpp"
 #include "log.hpp"
@@ -7,7 +8,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <chrono>
 #include <filesystem>
 #include <string>
 #include <thread>
@@ -143,6 +143,11 @@ int main(int argc, char** argv) {
             std::thread([] {
                 Game::WatchRobloxLog();
             }).detach();
+        }
+
+        if (config->discord_rpc) {
+            DiscordRPC::GetInstance()->Init();
+            DiscordRPC::GetInstance()->StartThread();
         }
 
         Game::Start(payload);
