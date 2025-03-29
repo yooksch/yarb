@@ -2,8 +2,6 @@
 
 YARB (Yet Another Roblox Bootstrapper) is a custom Roblox bootstrapper aimed at being feature-rich, fast and easy-to-use.
 
-> [!NOTE]
-> YARB is in early developed; not all features are implemented
 
 ## Features
 - GUI to manage both FastFlags and modifications
@@ -11,7 +9,7 @@ YARB (Yet Another Roblox Bootstrapper) is a custom Roblox bootstrapper aimed at 
 - File integrity - Ensures that no files are corrupt
 - Efficient updates - Only download packages which changed
 - Query Roblox server location
-- Discord RPC
+- Discord Rich Presence
 
 ## Prerequisites
 
