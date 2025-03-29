@@ -8,7 +8,6 @@
 #include "winhelpers.hpp"
 
 #include <chrono>
-#include <codecvt>
 #include <cstring>
 #include <exception>
 #include <filesystem>
