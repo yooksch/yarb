@@ -426,7 +426,7 @@ namespace Game {
                     previous_pos = log_file.tellg();
 
                     if (line.contains(" serverId: ")) {
-                        static const std::regex regex("serverId: (\\d+\\.)\\|");
+                        static const std::regex regex("serverId: ([\\d\\.]+)");
                         std::smatch match;
                         if (!std::regex_search(line, match, regex)) {
                             Log::Error("Game::WatchRobloxLog", "Failed to get server ip address");
