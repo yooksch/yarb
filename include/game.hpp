@@ -1,6 +1,5 @@
 #pragma once
 
-#include <filesystem>
 #include <functional>
 #include <map>
 #include <string>
@@ -16,6 +15,7 @@ namespace Game {
     extern const std::map<std::string, std::string> PACKAGE_MAP;
     static std::map<std::string, std::string> PACKAGE_SIGNATURES;
     static std::map<std::string, FileSignature> FILE_SIGNATURES;
+    static std::string server_location;
 
     struct ManifestEntry {
         std::string name;
@@ -42,10 +42,10 @@ namespace Game {
     std::vector<ManifestEntry> GetManifest(std::string& version);
     void Download(const std::string& version, const std::vector<ManifestEntry>& manifest, bool efficient_download, std::function<void(size_t)> progress_callback);
     void DownloadPackage(const std::string& version, const ManifestEntry& package);
-    void RegisterProtocolHandler(const char* protocol, const std::filesystem::path& executable);
     bool Start(std::string args, bool safe_mode = false);
     void Bootstrap(bool efficient_download, std::function<void(BootstrapStatusUpdate)> callback);
     void VerifyFileIntegrity(std::function<void(size_t, size_t)> progress_callback);
     void LoadSavedSignatures();
     void SaveSignatures();
+    void WatchRobloxLog();
 }

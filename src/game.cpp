@@ -5,19 +5,24 @@
 #include "log.hpp"
 #include "modmanager.hpp"
 #include "paths.hpp"
+#include "winhelpers.hpp"
 
+#include <chrono>
+#include <codecvt>
 #include <cstring>
 #include <exception>
 #include <filesystem>
 #include <format>
 #include <fstream>
+#include <iosfwd>
 #include <iostream>
 #include <iterator>
 #include <processthreadsapi.h>
+#include <set>
 #include <sstream>
 #include <string>
+#include <stringapiset.h>
 #include <thread>
-#include <windows.h>
 #include <TlHelp32.h>
 #include <zip.h>
 #include <nlohmann/json.hpp>
@@ -200,98 +205,6 @@ namespace Game {
         Log::Debug("Game::Download", "Downloaded package {}", package.name);
     }
 
-    void RegisterProtocolHandler(const char *protocol, const std::filesystem::path &executable) {
-        HKEY key {};
-        LRESULT result = RegCreateKeyExA(
-            HKEY_CURRENT_USER,
-            std::format("Software\\Classes\\{}", protocol).c_str(),
-            0,
-            NULL,
-            REG_OPTION_NON_VOLATILE,
-            KEY_ALL_ACCESS,
-            NULL,
-            &key,
-            NULL
-        );
-        if (result != ERROR_SUCCESS) {
-            Log::Error("Game::RegisterProtocolHandler", "Failed to register protocol handler");
-            return;
-        }
-
-        std::string value = "URL: Roblox Protocol";
-        RegSetValueExA(
-            key,
-            "",
-            0,
-            REG_SZ,
-            reinterpret_cast<const BYTE*>(value.c_str()),
-            (value.length() + 1) * sizeof(wchar_t)
-        );
-        RegSetValueExA(
-            key,
-            "URL Protocol",
-            0,
-            REG_SZ,
-            reinterpret_cast<const BYTE*>(""),
-            1
-        );
-        RegCloseKey(key);
-
-        result = RegCreateKeyExA(
-            HKEY_CURRENT_USER,
-            std::format("Software\\Classes\\{}\\DefaultIcon", protocol).c_str(),
-            0,
-            NULL,
-            REG_OPTION_NON_VOLATILE,
-            KEY_ALL_ACCESS,
-            NULL,
-            &key,
-            NULL
-        );
-        if (result != ERROR_SUCCESS) {
-            Log::Error("Game::RegisterProtocolHandler", "Failed to register protocol handler");
-            return;
-        }
-
-        value = executable.string();
-        RegSetValueExA(
-            key,
-            "",
-            0,
-            REG_SZ,
-            reinterpret_cast<const BYTE*>(value.c_str()),
-            (value.length() + 1) * sizeof(wchar_t)
-        );
-        RegCloseKey(key);
-
-        result = RegCreateKeyExA(
-            HKEY_CURRENT_USER,
-            std::format("Software\\Classes\\{}\\shell\\open\\command", protocol).c_str(),
-            0,
-            NULL,
-            REG_OPTION_NON_VOLATILE,
-            KEY_ALL_ACCESS,
-            NULL,
-            &key,
-            NULL
-        );
-        if (result != ERROR_SUCCESS) {
-            Log::Error("Game::RegisterProtocolHandler", "Failed to register protocol handler");
-            return;
-        }
-
-        value = std::format("\"{}\" launch %1", executable.string());
-        RegSetValueExA(
-            key,
-            "",
-            0,
-            REG_SZ,
-            reinterpret_cast<const BYTE*>(value.c_str()),
-            (value.length() + 1) * sizeof(wchar_t)
-        );
-        RegCloseKey(key);
-    }
-
     bool Start(std::string args, bool safe_mode) {
         Log::Info("Game::Start", "Starting Roblox...");
         // Check if roblox is already running
@@ -467,5 +380,82 @@ namespace Game {
 
         std::ofstream file(Paths::SignaturesFile);
         file << j.dump(4);
+    }
+
+    /// Must be called before starting the game
+    void WatchRobloxLog() {
+        // Wait for a new log file to be created
+        std::set<std::filesystem::path> existing_files;
+
+        // Populate existing files
+        for (const auto& entry : std::filesystem::directory_iterator(Paths::RobloxLogDirectory)) {
+            if (!entry.is_regular_file()) continue;
+            existing_files.emplace(entry.path());
+        }
+
+        // Check for new files
+        std::filesystem::path log_path;
+        const int MAX_ITERATIONS = 600; // equivalent to 1 minute
+        int iteration = 0;
+        while (iteration++ < MAX_ITERATIONS && log_path.empty()) {
+            for (const auto& entry : std::filesystem::directory_iterator(Paths::RobloxLogDirectory)) {
+                if (existing_files.contains(entry.path()) || !entry.is_regular_file()) continue;
+                log_path = entry.path();
+                break;
+            }
+            std::this_thread::sleep_for(std::chrono::duration<int, std::milli>(100));
+        }
+
+        Log::Debug("Game::WatchRobloxLog", "Found latest log file: {}", log_path.string());
+
+        // Read log file line by line
+        std::ifstream log_file(log_path);
+        std::string line;
+        std::streampos previous_pos;
+        while (true) {
+            log_file.seekg(0, std::ios::end);
+            std::streampos file_size = log_file.tellg();
+
+            if (file_size > previous_pos) {
+                // File was written to
+                log_file.seekg(previous_pos);
+                
+                while (std::getline(log_file, line)) {
+                    previous_pos = log_file.tellg();
+
+                    if (line.contains(" serverId: ")) {
+                        auto last_idx = line.find_last_of(' '); // find last whitespace
+                        auto address = line.substr(last_idx + 1);
+
+                        last_idx = address.find_last_of('|'); // find |
+                        auto ip = address.substr(0, last_idx);
+
+                        Log::Debug("Game::WatchRobloxLog", "Getting location of {}", ip);
+                        auto response = Http::Get(std::format("https://ipinfo.io/{}/json", ip).c_str());
+                        if (response.status_code != 200) {
+                            Log::Error("Game::WatchRobloxLog", "Failed to get server location");
+                            continue;
+                        }
+
+                        json j = json::parse(response.text);
+                        server_location = std::format(
+                            "{}, {}, {}",
+                            static_cast<std::string>(j["city"]),
+                            static_cast<std::string>(j["region"]),
+                            static_cast<std::string>(j["country"])
+                        );
+
+                        Log::Info("Game::WatchRobloxLog", "Server location: {}", server_location);
+                        WinHelpers::SendNotification(L"Server Location", WinHelpers::StringToWideString(server_location));
+                    }
+                }
+            } else {
+                // Small delay to not put too much load on the CPU/disk
+                std::this_thread::sleep_for(std::chrono::duration<int, std::milli>(20));
+            }
+
+            // Clear EOF flag
+            log_file.clear();
+        }
     }
 }

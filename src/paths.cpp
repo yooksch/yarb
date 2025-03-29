@@ -8,12 +8,13 @@
 #include <shtypes.h>
 #include <winuser.h>
 
-std::filesystem::path Paths::RootDirectory = ".\\yarb";
-std::filesystem::path Paths::GameDirectory = RootDirectory / "Game";
-std::filesystem::path Paths::ModsDirectory = RootDirectory / "Mods";
-std::filesystem::path Paths::LogFile = RootDirectory / "latest.log";
-std::filesystem::path Paths::ConfigFile = RootDirectory / "config.json";
-std::filesystem::path Paths::SignaturesFile = RootDirectory / "hashes.json";
+std::filesystem::path Paths::RootDirectory;
+std::filesystem::path Paths::GameDirectory;
+std::filesystem::path Paths::ModsDirectory;
+std::filesystem::path Paths::LogFile;
+std::filesystem::path Paths::ConfigFile;
+std::filesystem::path Paths::SignaturesFile;
+std::filesystem::path Paths::RobloxLogDirectory;
 
 void Paths::InitPaths() {
     PWSTR local_app_data;
@@ -25,6 +26,7 @@ void Paths::InitPaths() {
         LogFile = RootDirectory / "latest.log";
         ConfigFile = RootDirectory / "config.json";
         SignaturesFile = RootDirectory / "hashes.json";
+        RobloxLogDirectory = std::filesystem::path(local_app_data) / "Roblox" / "logs";
 
         // Create directories
         std::filesystem::create_directories(GameDirectory);

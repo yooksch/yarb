@@ -10,6 +10,7 @@ public:
     static std::filesystem::path LogFile;
     static std::filesystem::path ConfigFile;
     static std::filesystem::path SignaturesFile;
+    static std::filesystem::path RobloxLogDirectory;
 
     static void InitPaths();
 };

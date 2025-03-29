@@ -7,6 +7,8 @@ project(
 
 windows = import('windows')
 
+win_rt = declare_dependency(link_args: ['-lwindowsapp', '-lruntimeobject'])
+
 executable('yarb',
     [
         'src\\main.cpp',
@@ -18,6 +20,7 @@ executable('yarb',
         'src\\paths.cpp',
         'src\\gui.cpp',
         'src\\modmanager.cpp',
+        'src\\winhelpers.cpp',
 
         # Dear ImGUI
 
@@ -36,6 +39,7 @@ executable('yarb',
         dependency('libzip', required: true),
         dependency('gl', required: true),
         dependency('libcurl', required: true),
-        dependency('openssl', required: true)
+        dependency('openssl', required: true),
+        win_rt
     ]
 )

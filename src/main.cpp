@@ -3,6 +3,8 @@
 #include "gui.hpp"
 #include "log.hpp"
 #include "paths.hpp"
+#include "winhelpers.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <chrono>
@@ -51,15 +53,18 @@ int main(int argc, char** argv) {
 
     // Load signatures
     try {
-    if (std::filesystem::exists(Paths::SignaturesFile))
-        Game::LoadSavedSignatures();
+        if (std::filesystem::exists(Paths::SignaturesFile))
+            Game::LoadSavedSignatures();
     } catch (std::exception ex) {
-        Log::Error("MAIN", "Failed to load signatures from file ({})", ex.what()) ;
+        Log::Error("MAIN", "Failed to load signatures from file ({})", ex.what());
     }
 
     // Register protocol handlers
-    Game::RegisterProtocolHandler("roblox", argv[0]);
-    Game::RegisterProtocolHandler("roblox-player", argv[0]);
+    WinHelpers::RegisterProtocolHandler("roblox", argv[0]);
+    WinHelpers::RegisterProtocolHandler("roblox-player", argv[0]);
+
+    // Register AUMID for notifications
+    WinHelpers::CreateUserAppModelIdEntry(argv[0]);
 
     std::string command;
     if (argc < 2)
@@ -67,6 +72,7 @@ int main(int argc, char** argv) {
     else
         command = std::string(argv[1]);
 
+    // Convert command into lowercase
     std::transform(command.begin(), command.end(), command.begin(), [](unsigned char c) {
         return std::tolower(c);
     });
@@ -131,6 +137,14 @@ int main(int argc, char** argv) {
 
             gui.Show();
         }
+
+        // start log watcher thread only if it's needed
+        if (config->query_server_location) {
+            std::thread([] {
+                Game::WatchRobloxLog();
+            }).detach();
+        }
+
         Game::Start(payload);
     }
 
