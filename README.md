@@ -20,6 +20,7 @@ YARB (Yet Another Roblox Bootstrapper) is a custom Roblox bootstrapper aimed at 
 - OpenSSL
 - nlohmann_json
 - OpenGL 3
+- [drpc](https://github.com/yooksch/drpc)
 
 ## Installation
 

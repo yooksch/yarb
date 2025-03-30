@@ -147,7 +147,6 @@ int main(int argc, char** argv) {
 
         if (config->discord_rpc) {
             DiscordRPC::GetInstance()->Init();
-            DiscordRPC::GetInstance()->StartThread();
         }
 
         Game::Start(payload);

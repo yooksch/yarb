@@ -1,4 +1,5 @@
 #include "gui.hpp"
+#include "discordrpc.hpp"
 #include "log.hpp"
 #include "embedded.hpp"
 #include "config.hpp"
@@ -220,6 +221,7 @@ void SettingsGUI::Render() {
                         start_progress_current = status.progress_current;
                         start_progress_max = status.progress_max;
                     });
+                    DiscordRPC::GetInstance()->Init();
                     Game::Start("--app", safe_mode);
                 }).detach();
                 ImGui::OpenPopup("Starting Roblox");
