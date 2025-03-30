@@ -57,7 +57,6 @@ executable('yarb',
     include_directories: include_directories('include', 'imgui'),
     dependencies: [
         dependency('nlohmann_json', required: true, fallback: ['nlohmann-json']),
-        dependency('fmt', required: true),
         dependency('libzip', required: true),
         dependency('gl', required: true),
         dependency('libcurl', required: true),
