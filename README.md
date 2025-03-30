@@ -16,7 +16,6 @@ YARB (Yet Another Roblox Bootstrapper) is a custom Roblox bootstrapper aimed at 
 - Meson
 - A C++23 capable compiler
 - libzip
-- fmt
 - libcurl
 - OpenSSL
 - nlohmann_json
