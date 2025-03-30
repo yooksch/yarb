@@ -10,7 +10,7 @@ DiscordRPC* DiscordRPC::GetInstance() {
 
 void DiscordRPC::Init() {
     init_time = time(NULL);
-    client = std::make_unique<DiscordRichPresence::Client>(1355511418530697336);
+    client = std::make_shared<DiscordRichPresence::Client>(1355511418530697336);
     client->Connect();
 
     activity = DiscordRichPresence::Activity { };
@@ -23,8 +23,8 @@ void DiscordRPC::Init() {
 
 void DiscordRPC::SetActivity(const Game::RobloxUniverseDetails place) {
     auto assets = &activity.GetAssets();
-    assets->SetLargeImage(place.cover_url.c_str());
-    assets->SetLargeImageText(place.name.c_str());
+    assets->SetLargeImage(place.cover_url);
+    assets->SetLargeImageText(place.name);
 
     activity.SetDetails(place.name);
     activity.SetState(std::format("by {}", place.creator));
