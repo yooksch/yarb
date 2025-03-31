@@ -14,6 +14,5 @@ public:
 private:
     std::shared_ptr<DiscordRichPresence::Client> client;
     DiscordRichPresence::Activity activity;
-    bool running = false;
     long long init_time;
 };
