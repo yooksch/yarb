@@ -380,12 +380,6 @@ void SettingsGUI::Render() {
                     SW_SHOWDEFAULT
                 );
             }
-
-            if (ImGui::Button("Install YARB")) {
-                
-            }
-            ImGui::SameLine();
-            HelpText("Install YARB as a Windows application");
         }
 
         if (ImGui::CollapsingHeader("Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
