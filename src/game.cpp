@@ -458,12 +458,14 @@ namespace Game {
                         std::smatch match;
                         if (std::regex_search(line, match, regex)) {
                             long long universe_id = std::stoll(match.str(1).c_str());
+
                             Log::Debug("Game::WatchRobloxLog", "Getting universe details for {}", universe_id);
                             auto details = GetUniverseDetails(universe_id);
                             Log::Info("Game::WatchRobloxLog", "Joined universe {}", details.name);
+                            
                             DiscordRPC::GetInstance()->SetActivity(details);
                         } else {
-                            Log::Warning("Game::WatchRobloxLog", "Failed to get current place id");
+                            Log::Warning("Game::WatchRobloxLog", "Failed to get current universe id");
                         }
                     } else if (line.contains("NetworkClient:Remove") && config->discord_rpc) {
                         DiscordRPC::GetInstance()->ClearActivity();

@@ -18,7 +18,7 @@ namespace Http {
 
     Response Get(const char* url) {
         auto curl = curl_easy_init();
-        assert(curl);
+        assert(curl); // Ensure curl init was successful
 
         std::vector<std::byte> bytes {};
         long status_code = 0;

@@ -207,155 +207,178 @@ void SettingsGUI::Render() {
 
     auto config = Config::GetInstance();
 
+    #pragma region Start Tab
+
     if (ImGui::BeginTabItem("Start")) {
         if (ImGui::CollapsingHeader("Control", ImGuiTreeNodeFlags_DefaultOpen)) {
-            static bool safe_mode;
-            static bool bootstrap_complete = false;
-            static Game::BootstrapStatus start_status;
-            static size_t start_progress_current, start_progress_max;
-            if (ImGui::Button("Start Roblox")) {
-                config->Save(Paths::ConfigFile);
-                std::thread([&] {
-                    Game::Bootstrap(false, [&](Game::BootstrapStatusUpdate status) {
-                        start_status = status.status;
-                        start_progress_current = status.progress_current;
-                        start_progress_max = status.progress_max;
-                    });
-                    
-                    if (config->query_server_location || config->discord_rpc) {
-                        if (config->discord_rpc) {
-                            DiscordRPC::GetInstance()->Init();
-                        }
+            // Start Button
+            {
+                static bool safe_mode;
+                static bool bootstrap_complete = false;
+                static Game::BootstrapStatus start_status;
+                static size_t start_progress_current, start_progress_max;
+                if (ImGui::Button("Start Roblox")) {
+                    config->Save(Paths::ConfigFile);
+
+                    std::thread([&] {
+                        // Ensure roblox is updated
+                        Game::Bootstrap(false, [&](Game::BootstrapStatusUpdate status) {
+                            start_status = status.status;
+                            start_progress_current = status.progress_current;
+                            start_progress_max = status.progress_max;
+                        });
                         
+                        if (config->query_server_location || config->discord_rpc) {
+                            if (config->discord_rpc) {
+                                DiscordRPC::GetInstance()->Init();
+                            }
+                            
+                            std::thread([] {
+                                Game::WatchRobloxLog();
+                            }).detach();
+                        }
+
+                        Game::Start("--app", safe_mode);
+                    }).detach();
+
+                    // Open loading modal
+                    ImGui::OpenPopup("Starting Roblox");
+                }
+
+                if (ImGui::BeginPopupModal("Starting Roblox", NULL,
+                    ImGuiWindowFlags_AlwaysAutoResize
+                    | ImGuiWindowFlags_NoResize
+                    | ImGuiWindowFlags_NoMove
+                    | ImGuiWindowFlags_NoCollapse
+                    | ImGuiWindowFlags_NoSavedSettings
+                )) {
+                    switch (start_status) {
+                    case Game::GettingVersion:
+                        ImGui::Text("Status: Getting latest version");
+                        break;
+                    case Game::VerifyingFileIntegrity:
+                        ImGui::Text("Status: Verifying file integrity");
+                        if (start_progress_max == 0) {
+                            ImGui::ProgressBar(0);
+                        } else {
+                            ImGui::ProgressBar((float)start_progress_current / start_progress_max);
+                        }
+                        break;
+                    case Game::GettingManifest:
+                        ImGui::Text("Status: Getting manifest");
+                        break;
+                    case Game::DownloadingPackages:
+                        ImGui::Text("Status: Downloading packages");
+                        if (start_progress_max == 0) {
+                            ImGui::ProgressBar(0);
+                        } else {
+                            ImGui::ProgressBar((float)start_progress_current / start_progress_max);
+                        }
+                        break;
+                    case Game::Complete:
+                        bootstrap_complete = true;
+                        break;
+                    }
+
+                    if (bootstrap_complete)
+                        ImGui::CloseCurrentPopup();
+
+                    ImGui::EndPopup();
+                }
+
+                ImGui::SameLine();
+                ImGui::Checkbox("Safe Mode", &safe_mode);
+                ImGui::SameLine();
+                HelpText("Start Roblox without FastFlags and modifications");
+            }
+
+            // Reinstall Roblox
+            {
+                if (ImGui::Button("Reinstall Roblox")) {
+                    ImGui::OpenPopup("Installer");
+                }
+
+                if (ImGui::BeginPopupModal("Installer", NULL,
+                    ImGuiWindowFlags_AlwaysAutoResize
+                    | ImGuiWindowFlags_NoResize
+                    | ImGuiWindowFlags_NoMove
+                    | ImGuiWindowFlags_NoCollapse
+                    | ImGuiWindowFlags_NoSavedSettings
+                )) {
+                    enum State {
+                        Uninstalling,
+                        GettingVersion,
+                        DownloadingManifest,
+                        DownloadingPackages
+                    };
+
+                    static bool busy = false;
+                    static State state = GettingVersion;
+                    static int package_count = 100;
+                    static int packages_installed = 0;
+
+                    if (!busy) {
+                        busy = true;
+
                         std::thread([] {
-                            Game::WatchRobloxLog();
+                            state = Uninstalling;
+                            fs::remove_all(Paths::GameDirectory);
+                            fs::create_directory(Paths::GameDirectory); // Ensure game directory exists
+
+                            state = GettingVersion;
+                            auto version = Game::GetLatestRobloxVersion();
+
+                            state = DownloadingManifest;
+                            auto manifest = Game::GetManifest(version);
+
+                            state = DownloadingPackages;
+                            package_count = manifest.size();
+
+                            Game::Download(version, manifest, false, [](int p) {
+                                packages_installed = p;
+                            });
+
+                            // Debounce
+                            Sleep(500);
+                            busy = false;
                         }).detach();
                     }
 
-                    Game::Start("--app", safe_mode);
-                }).detach();
-                ImGui::OpenPopup("Starting Roblox");
-            }
-
-            if (ImGui::BeginPopupModal("Starting Roblox", NULL,
-                ImGuiWindowFlags_AlwaysAutoResize
-                | ImGuiWindowFlags_NoResize
-                | ImGuiWindowFlags_NoMove
-                | ImGuiWindowFlags_NoCollapse
-                | ImGuiWindowFlags_NoSavedSettings
-            )) {
-                switch (start_status) {
-                case Game::GettingVersion:
-                    ImGui::Text("Status: Getting latest version");
-                    break;
-                case Game::VerifyingFileIntegrity:
-                    ImGui::Text("Status: Verifying file integrity");
-                    if (start_progress_max == 0) {
-                        ImGui::ProgressBar(0);
-                    } else {
-                        ImGui::ProgressBar((float)start_progress_current / start_progress_max);
+                    switch (state) {
+                    case Uninstalling:
+                        ImGui::Text("Status: Uninstalling Roblox");
+                        break;
+                    case GettingVersion:
+                        ImGui::Text("Status: Getting latest version");
+                        break;
+                    case DownloadingManifest:
+                        ImGui::Text("Status: Getting manifest");
+                        break;
+                    case DownloadingPackages:
+                        ImGui::Text("Status: Downloading packages");
+                        ImGui::ProgressBar((float)packages_installed / package_count);
+                        break;
                     }
-                    break;
-                case Game::GettingManifest:
-                    ImGui::Text("Status: Getting manifest");
-                    break;
-                case Game::DownloadingPackages:
-                    ImGui::Text("Status: Downloading packages");
-                    if (start_progress_max == 0) {
-                        ImGui::ProgressBar(0);
-                    } else {
-                        ImGui::ProgressBar((float)start_progress_current / start_progress_max);
-                    }
-                    break;
-                case Game::Complete:
-                    bootstrap_complete = true;
-                    break;
-                }
 
-                if (bootstrap_complete)
-                    ImGui::CloseCurrentPopup();
-
-                ImGui::EndPopup();
-            }
-
-            ImGui::SameLine();
-            ImGui::Checkbox("Safe Mode", &safe_mode);
-            ImGui::SameLine();
-            HelpText("Start Roblox without FastFlags and modifications");
-
-            if (ImGui::Button("Reinstall Roblox")) {
-                ImGui::OpenPopup("Installer");
-            }
-
-            if (ImGui::BeginPopupModal("Installer", NULL,
-                ImGuiWindowFlags_AlwaysAutoResize
-                | ImGuiWindowFlags_NoResize
-                | ImGuiWindowFlags_NoMove
-                | ImGuiWindowFlags_NoCollapse
-                | ImGuiWindowFlags_NoSavedSettings
-            )) {
-                enum State {
-                    Uninstalling,
-                    GettingVersion,
-                    DownloadingManifest,
-                    DownloadingPackages
-                };
-
-                static bool busy = false;
-                static State state = GettingVersion;
-                static int package_count = 100;
-                static int packages_installed = 0;
-
-                if (!busy) {
-                    busy = true;
-
-                    std::thread([] {
+                    if (package_count - 1 == packages_installed) {
+                        packages_installed = 0;
                         state = Uninstalling;
-                        fs::remove_all(Paths::GameDirectory);
-                        fs::create_directory(Paths::GameDirectory); // Ensure game directory exists
-                        state = GettingVersion;
-                        auto version = Game::GetLatestRobloxVersion();
-                        state = DownloadingManifest;
-                        auto manifest = Game::GetManifest(version);
-                        state = DownloadingPackages;
-                        package_count = manifest.size();
-
-                        Game::Download(version, manifest, false, [](int p) {
-                            packages_installed = p;
-                        });
-
-                        Sleep(500);
-                        busy = false;
-                    }).detach();
+                        ImGui::CloseCurrentPopup();
+                    }
+                
+                    ImGui::EndPopup();
                 }
-
-                switch (state) {
-                case Uninstalling:
-                    ImGui::Text("Status: Uninstalling Roblox");
-                    break;
-                case GettingVersion:
-                    ImGui::Text("Status: Getting version");
-                    break;
-                case DownloadingManifest:
-                    ImGui::Text("Status: Downloading manifest");
-                    break;
-                case DownloadingPackages:
-                    ImGui::Text("Status: Downloading packages");
-                    ImGui::ProgressBar((float)packages_installed / package_count);
-                    break;
-                }
-
-                if (package_count - 1 == packages_installed) {
-                    packages_installed = 0;
-                    state = Uninstalling;
-                    ImGui::CloseCurrentPopup();
-                }
-            
-                ImGui::EndPopup();
             }
 
             if (ImGui::Button("Open data folder")) {
-                ShellExecuteA(NULL, "open", Paths::RootDirectory.string().data(), NULL, NULL, SW_SHOWDEFAULT);
+                ShellExecuteA(
+                    NULL,
+                    "open",
+                    Paths::RootDirectory.string().data(),
+                    NULL,
+                    NULL,
+                    SW_SHOWDEFAULT
+                );
             }
 
             if (ImGui::Button("Install YARB")) {
@@ -489,6 +512,10 @@ void SettingsGUI::Render() {
         ImGui::EndTabItem();
     }
 
+    #pragma endregion
+
+    #pragma region FastFlags Tab
+
     if (ImGui::BeginTabItem("FastFlags")) {
         // FastFlagEditor inputs
         static char ffe_name[255];
@@ -584,6 +611,10 @@ void SettingsGUI::Render() {
 
         ImGui::EndTabItem();
     }
+
+    #pragma endregion
+
+    #pragma region Modifications Tab
 
     if (ImGui::BeginTabItem("Modifications")) {
         if (ImGui::Button("Remove all modifications")) {
@@ -713,6 +744,8 @@ void SettingsGUI::Render() {
 
         ImGui::EndTabItem();
     }
+
+    #pragma endregion
 
     ImGui::EndTabBar();
 
