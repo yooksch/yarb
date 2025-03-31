@@ -20,9 +20,8 @@ YARB (Yet Another Roblox Bootstrapper) is a custom Roblox bootstrapper aimed at 
 - OpenSSL
 - nlohmann_json
 - OpenGL 3
-- [drpc](https://github.com/yooksch/drpc)
 
-## Installation
+## Compiling
 
 1. Clone the repository: `git clone https://github.com/yooksch/yarb.git`
 2. Configure Meson: `meson setup build`

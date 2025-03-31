@@ -13,6 +13,8 @@ void DiscordRPC::Init() {
     client = std::make_shared<DiscordRichPresence::Client>(1355511418530697336);
     if (client->Connect() == DiscordRichPresence::Result::Ok)
         Log::Info("DiscordRPC::Init", "Connected");
+    else
+        Log::Error("DiscordRPC::Init", "Failed to connect");
 
     activity = DiscordRichPresence::Activity { };
     activity.SetClientId(1355511418530697336);

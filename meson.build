@@ -41,6 +41,7 @@ executable('yarb',
         dependency('openssl', required: true),
         win_rt
     ],
+    cpp_args: ['-Wno-nullability-extension'],
     install: true,
     install_dir: meson.current_build_dir() / 'release'
 )

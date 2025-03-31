@@ -79,6 +79,7 @@ int main(int argc, char** argv) {
 
     if (command == "update") {
         auto version = Game::GetLatestRobloxVersion();
+        
         if (config->installed_version == version) {
             std::cout << "Roblox is up to date!" << std::endl;
         } else {
@@ -95,35 +96,7 @@ int main(int argc, char** argv) {
             payload = argv[2];
         }
 
-        if (payload != "--app") {
-            std::string launch_args;
-
-            if (payload.starts_with("roblox-player:")) {
-                std::string new_payload;
-                for (const auto& s : split(payload, "+")) {
-                    auto parts = split(s, ":");
-                    std::string key = parts[0];
-                    std::string value = parts[1];
-
-                    if (key == "launchtime") {
-                        auto timestamp = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
-                        value = std::to_string(timestamp);
-                    } else if (key == "channel") {
-                        continue;
-                    }
-
-                    new_payload += std::format("{}:{}+", key, value);
-                }
-                new_payload.erase(new_payload.length());
-                payload = new_payload;
-            } else if (payload.starts_with("roblox:")) {
-                launch_args = std::format("--app --deeplink {}", payload);
-            } else {
-                Log::Error("MAIN", "Payload is invalid");
-                goto exit;
-            }
-        }
-
+        // Wrap LaunchGUI in new block to ensure destructor is called
         {
             LaunchGUI gui(350, 100);
 
@@ -147,6 +120,37 @@ int main(int argc, char** argv) {
             std::thread([] {
                 Game::WatchRobloxLog();
             }).detach();
+        }
+
+        if (payload != "--app") {
+            std::string launch_args;
+
+            if (payload.starts_with("roblox-player:")) {
+                std::string new_payload;
+
+                // Ensure launchtime is current and remove channel field
+                for (const auto& s : split(payload, "+")) {
+                    auto parts = split(s, ":");
+                    std::string key = parts[0];
+                    std::string value = parts[1];
+
+                    if (key == "launchtime") {
+                        auto timestamp = chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count();
+                        value = std::to_string(timestamp);
+                    } else if (key == "channel") {
+                        continue;
+                    }
+
+                    new_payload += std::format("{}:{}+", key, value);
+                }
+                new_payload.erase(new_payload.length());
+                payload = new_payload;
+            } else if (payload.starts_with("roblox:")) {
+                launch_args = std::format("--app --deeplink {}", payload);
+            } else {
+                Log::Error("MAIN", "Payload is invalid");
+                goto exit;
+            }
         }
 
         Game::Start(payload);
