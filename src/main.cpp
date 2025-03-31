@@ -139,14 +139,14 @@ int main(int argc, char** argv) {
         }
 
         // start log watcher thread only if it's needed
-        if (config->query_server_location) {
+        if (config->query_server_location || config->discord_rpc) {
+            if (config->discord_rpc) {
+                DiscordRPC::GetInstance()->Init();
+            }
+            
             std::thread([] {
                 Game::WatchRobloxLog();
             }).detach();
-        }
-
-        if (config->discord_rpc) {
-            DiscordRPC::GetInstance()->Init();
         }
 
         Game::Start(payload);

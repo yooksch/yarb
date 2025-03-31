@@ -11,7 +11,8 @@ DiscordRPC* DiscordRPC::GetInstance() {
 void DiscordRPC::Init() {
     init_time = time(NULL);
     client = std::make_shared<DiscordRichPresence::Client>(1355511418530697336);
-    client->Connect();
+    if (client->Connect() == DiscordRichPresence::Result::Ok)
+        Log::Info("DiscordRPC::Init", "Connected");
 
     activity = DiscordRichPresence::Activity { };
     activity.SetClientId(1355511418530697336);
@@ -31,9 +32,9 @@ void DiscordRPC::SetActivity(const Game::RobloxUniverseDetails place) {
     activity.GetTimestamps().SetStart(time(NULL));
 
     if (auto result = client->UpdateActivity(activity); result == DiscordRichPresence::Result::Ok) {
-        Log::Info("DiscordRPC::SetActivity", "Successfully cleared activity");
+        Log::Info("DiscordRPC::SetActivity", "Successfully set activity");
     } else {
-        Log::Error("DiscordRPC::SetActivity", "Failed to clear activity ({})", (int)result);
+        Log::Error("DiscordRPC::SetActivity", "Failed to set activity ({})", (int)result);
     }
 }
 

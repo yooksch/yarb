@@ -221,7 +221,17 @@ void SettingsGUI::Render() {
                         start_progress_current = status.progress_current;
                         start_progress_max = status.progress_max;
                     });
-                    DiscordRPC::GetInstance()->Init();
+                    
+                    if (config->query_server_location || config->discord_rpc) {
+                        if (config->discord_rpc) {
+                            DiscordRPC::GetInstance()->Init();
+                        }
+                        
+                        std::thread([] {
+                            Game::WatchRobloxLog();
+                        }).detach();
+                    }
+
                     Game::Start("--app", safe_mode);
                 }).detach();
                 ImGui::OpenPopup("Starting Roblox");

@@ -386,6 +386,8 @@ namespace Game {
 
     /// Must be called before starting the game
     void WatchRobloxLog() {
+        auto config = Config::GetInstance();
+
         // Wait for a new log file to be created
         std::set<std::filesystem::path> existing_files;
 
@@ -425,7 +427,7 @@ namespace Game {
                 while (std::getline(log_file, line)) {
                     previous_pos = log_file.tellg();
 
-                    if (line.contains(" serverId: ")) {
+                    if (line.contains(" serverId: ") && config->query_server_location) {
                         static const std::regex regex("serverId: ([\\d\\.]+)");
                         std::smatch match;
                         if (!std::regex_search(line, match, regex)) {
@@ -451,7 +453,7 @@ namespace Game {
 
                         Log::Info("Game::WatchRobloxLog", "Server location: {}", server_location);
                         WinHelpers::SendNotification(L"Server Location", WinHelpers::StringToWideString(server_location));
-                    } else if (line.contains("FLog::GameJoinLoadTime")) {
+                    } else if (line.contains("FLog::GameJoinLoadTime") && config->discord_rpc) {
                         static const std::regex regex("universeid:(\\d+)");
                         std::smatch match;
                         if (std::regex_search(line, match, regex)) {
@@ -463,7 +465,7 @@ namespace Game {
                         } else {
                             Log::Warning("Game::WatchRobloxLog", "Failed to get current place id");
                         }
-                    } else if (line.contains("NetworkClient:Remove")) {
+                    } else if (line.contains("NetworkClient:Remove") && config->discord_rpc) {
                         DiscordRPC::GetInstance()->ClearActivity();
                     }
                 }
