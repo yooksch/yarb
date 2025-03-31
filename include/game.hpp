@@ -54,5 +54,5 @@ namespace Game {
     void LoadSavedSignatures();
     void SaveSignatures();
     void WatchRobloxLog();
-    RobloxUniverseDetails GetUniverseDetails(int place_id);
+    RobloxUniverseDetails GetUniverseDetails(long long place_id);
 }

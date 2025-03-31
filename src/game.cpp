@@ -457,7 +457,7 @@ namespace Game {
                         static const std::regex regex("universeid:(\\d+)");
                         std::smatch match;
                         if (std::regex_search(line, match, regex)) {
-                            int universe_id = std::stoi(match.str(1).c_str());
+                            long long universe_id = std::stoll(match.str(1).c_str());
                             Log::Debug("Game::WatchRobloxLog", "Getting universe details for {}", universe_id);
                             auto details = GetUniverseDetails(universe_id);
                             Log::Info("Game::WatchRobloxLog", "Joined universe {}", details.name);
@@ -479,7 +479,7 @@ namespace Game {
         }
     }
 
-    RobloxUniverseDetails GetUniverseDetails(int place_id) {
+    RobloxUniverseDetails GetUniverseDetails(long long place_id) {
         RobloxUniverseDetails details {};
 
         auto res = Http::Get(std::format("https://games.roblox.com/v1/games?universeIds={}", place_id).c_str());
