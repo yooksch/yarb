@@ -12,6 +12,7 @@ void Log::AllocWinConsole() {
     AllocConsole();
     FILE* f;
     freopen_s(&f, "CONOUT$", "w", stdout);
+    SetConsoleOutputCP(CP_UTF8);
 }
 
 void Log::FreeWinConsole() {
