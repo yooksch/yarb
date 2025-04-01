@@ -8,6 +8,9 @@
 #include "imgui/imgui.h"
 #include "imgui/backends/imgui_impl_win32.h"
 #include "imgui/backends/imgui_impl_opengl3.h"
+#include "imgui/misc/cpp/imgui_stdlib.h"
+
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <combaseapi.h>
@@ -512,12 +515,89 @@ void SettingsGUI::Render() {
 
     if (ImGui::BeginTabItem("FastFlags")) {
         // FastFlagEditor inputs
-        static char ffe_name[255];
-        static char ffe_value[255];
+        static std::string ffe_name, ffe_value;
 
         // Controls
         if (ImGui::Button("Add new FastFlag")) {
             ImGui::OpenPopup("FastFlagEditor");
+        }
+
+        // Import JSON
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("Import JSON")) {
+                ImGui::OpenPopup("Import Json");
+            }
+
+            bool open = true;
+            static std::string input;
+            if (ImGui::BeginPopupModal("Import Json", &open,
+                ImGuiWindowFlags_NoSavedSettings
+                | ImGuiWindowFlags_AlwaysAutoResize
+                | ImGuiWindowFlags_NoResize
+                | ImGuiWindowFlags_NoCollapse)) {
+                static bool valid_json = true;
+
+                if (ImGui::InputTextMultiline("##", &input)) {
+                    try {
+                        valid_json = nlohmann::json::parse(input).is_object();
+                    } catch (std::exception) {
+                        valid_json = false;
+                    }
+                }
+
+                if (!valid_json) {
+                    ImGuiStyle& style = ImGui::GetStyle();
+                    float width = ImGui::CalcTextSize("Invalid Input").x + style.FramePadding.x * 2.0f;
+                    float offset = (ImGui::GetContentRegionAvail().x - width) * 0.5f;
+                    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
+                    ImGui::TextColored(ImVec4(0.7f, 0.3f, 0.3f, 1.0f), "Invalid Input");
+                }
+
+                if (ImGui::Button("Import", ImVec2(ImGui::GetColumnWidth(), 0.f))) {
+                    auto j = nlohmann::json::parse(input);
+
+                    // merge into config fastflags
+                    for (const auto& [key, value] : j.items()) {
+                        if (value.is_object() || value.is_array() || value.is_null()) continue;
+
+                        config->fast_flags[key] = value.get<std::string>();
+                    }
+
+                    input.clear();
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            } else if (input.length() > 0) {
+                input.clear();
+            }
+        }
+
+        // Export JSON
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("Export JSON")) {
+                ImGui::OpenPopup("Export Json");
+            }
+
+            bool open = true;
+            if (ImGui::BeginPopupModal("Export Json", &open,
+                ImGuiWindowFlags_NoSavedSettings
+                | ImGuiWindowFlags_AlwaysAutoResize
+                | ImGuiWindowFlags_NoResize
+                | ImGuiWindowFlags_NoCollapse)) {
+                nlohmann::json json = config->fast_flags;
+                std::string dumped = json.dump(4);
+
+                ImGui::InputTextMultiline("##", &dumped, ImVec2(0, 0), ImGuiInputTextFlags_ReadOnly);
+
+                if (ImGui::Button("Copy to Clipboard", ImVec2(ImGui::GetColumnWidth(), 0.f))) {
+                    ImGui::SetClipboardText(dumped.c_str());
+                }
+
+                ImGui::EndPopup();
+            }
         }
 
         bool open_editor = false;
@@ -526,28 +606,28 @@ void SettingsGUI::Render() {
 
             // Setup header
             ImGui::TableSetupScrollFreeze(0, 1);
-            ImGui::TableSetupColumn("Name");
-            ImGui::TableSetupColumn("Value");
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_NoSort);
+            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_NoSort);
             ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoHide);
             ImGui::TableHeadersRow();
 
             // Render fast flags
             size_t i = 0;
-            for (const auto& flag : config->fast_flags) {
+            for (const auto& [key, value] : config->fast_flags) {
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text("%s", flag.first.c_str());
+                ImGui::Text("%s", key.c_str());
 
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text("%s", flag.second.c_str());
+                ImGui::Text("%s", value.c_str());
 
                 ImGui::TableNextColumn();
                 ImGui::PushID(i++);
                 if (ImGui::Button("Edit")) {
-                    strcpy_s(ffe_name, flag.first.data());
-                    strcpy_s(ffe_value, flag.second.data());
+                    ffe_name = key;
+                    ffe_value = value;
                     open_editor = true;
                 }
                 ImGui::PopID();
@@ -559,7 +639,7 @@ void SettingsGUI::Render() {
 
                 ImGui::PushID(i++);
                 if (ImGui::Button("Remove")) {
-                    config->fast_flags.erase(flag.first);
+                    config->fast_flags.erase(key);
                 }
                 ImGui::PopID();
                 ImGui::PopStyleColor(3);
@@ -578,29 +658,30 @@ void SettingsGUI::Render() {
                 | ImGuiWindowFlags_NoResize
                 | ImGuiWindowFlags_NoSavedSettings
                 | ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::InputText("Name", ffe_name, sizeof(ffe_name));
-            ImGui::InputText("Value", ffe_value, sizeof(ffe_value));
+            ImGui::InputText("Name", &ffe_name, ImGuiInputTextFlags_ReadOnly);
+            ImGui::InputText("Value", &ffe_value);
 
             if (ImGui::Button("Save")) {
                 if (config->fast_flags.contains(ffe_name))
                     config->fast_flags.erase(ffe_name);
+
                 config->fast_flags.emplace(ffe_name, ffe_value);
-                memset(ffe_name, 0, sizeof(ffe_name));
-                memset(ffe_value, 0, sizeof(ffe_value));
+                ffe_name.clear();
+                ffe_value.clear();
                 ImGui::CloseCurrentPopup();
             }
 
             ImGui::SameLine();
             if (ImGui::Button("Cancel")) {
-                memset(ffe_name, 0, sizeof(ffe_name));
-                memset(ffe_value, 0, sizeof(ffe_value));
+                ffe_name.clear();
+                ffe_value.clear();
                 ImGui::CloseCurrentPopup();
             }
     
             ImGui::EndPopup();
         } else {
-            memset(ffe_name, 0, sizeof(ffe_name));
-            memset(ffe_value, 0, sizeof(ffe_value));
+            ffe_name.clear();
+            ffe_value.clear();
         }
 
         ImGui::EndTabItem();

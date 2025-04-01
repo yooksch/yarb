@@ -30,6 +30,7 @@ executable('yarb',
         'imgui\\imgui_widgets.cpp',
         'imgui\\backends\\imgui_impl_opengl3.cpp',
         'imgui\\backends\\imgui_impl_win32.cpp',
+        'imgui/misc/cpp/imgui_stdlib.cpp'
     ],
     windows.compile_resources('res\\yarb.rc'),
     include_directories: include_directories('include', 'imgui', 'drpc'),
