@@ -516,10 +516,12 @@ void SettingsGUI::Render() {
     if (ImGui::BeginTabItem("FastFlags")) {
         // FastFlagEditor inputs
         static std::string ffe_name, ffe_value;
+        static bool ffe_is_new = false;
 
         // Controls
         if (ImGui::Button("Add new FastFlag")) {
             ImGui::OpenPopup("FastFlagEditor");
+            ffe_is_new = true;
         }
 
         // Import JSON
@@ -628,6 +630,7 @@ void SettingsGUI::Render() {
                 if (ImGui::Button("Edit")) {
                     ffe_name = key;
                     ffe_value = value;
+                    ffe_is_new = false;
                     open_editor = true;
                 }
                 ImGui::PopID();
@@ -658,7 +661,7 @@ void SettingsGUI::Render() {
                 | ImGuiWindowFlags_NoResize
                 | ImGuiWindowFlags_NoSavedSettings
                 | ImGuiWindowFlags_AlwaysAutoResize)) {
-            ImGui::InputText("Name", &ffe_name, ImGuiInputTextFlags_ReadOnly);
+            ImGui::InputText("Name", &ffe_name, !ffe_is_new ? ImGuiInputTextFlags_ReadOnly : 0);
             ImGui::InputText("Value", &ffe_value);
 
             if (ImGui::Button("Save")) {
