@@ -1,5 +1,6 @@
 #include "gui.hpp"
 #include "discordrpc.hpp"
+#include "game.hpp"
 #include "log.hpp"
 #include "embedded.hpp"
 #include "config.hpp"
@@ -221,11 +222,13 @@ void SettingsGUI::Render() {
                 static Game::BootstrapStatus start_status;
                 static size_t start_progress_current, start_progress_max;
                 if (ImGui::Button("Start Roblox")) {
+                    bootstrap_complete = false;
+                    start_status = Game::BootstrapStatus::GettingVersion;
                     config->Save(Paths::ConfigFile);
 
                     std::thread([&] {
                         // Ensure roblox is updated
-                        Game::Bootstrap(false, [&](Game::BootstrapStatusUpdate status) {
+                        Game::Bootstrap(config->efficient_download, [&](Game::BootstrapStatusUpdate status) {
                             start_status = status.status;
                             start_progress_current = status.progress_current;
                             start_progress_max = status.progress_max;
@@ -786,7 +789,7 @@ void SettingsGUI::Render() {
                         if (SUCCEEDED(result)) {
                             auto fs_path = fs::path(path);
                             fs::create_directories(mod_path.parent_path());
-                            fs::copy_file(fs_path, mod_path);
+                            fs::copy_file(fs_path, mod_path, fs::copy_options::overwrite_existing);
                         } else {
                             goto file_picker_failed;
                         }
