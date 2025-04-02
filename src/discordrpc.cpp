@@ -21,10 +21,10 @@ void DiscordRPC::Init() {
     activity.SetType(DiscordRichPresence::ActivityType::Playing);
     activity.SetName("Roblox");
 
-    ClearActivity();
+    SetInApp();
 }
 
-void DiscordRPC::SetActivity(const Game::RobloxUniverseDetails place) {
+void DiscordRPC::SetInGame(const Game::RobloxUniverseDetails place) {
     auto assets = &activity.GetAssets();
     assets->SetLargeImage(place.cover_url);
     assets->SetLargeImageText(place.name);
@@ -36,16 +36,16 @@ void DiscordRPC::SetActivity(const Game::RobloxUniverseDetails place) {
     update_activity:
     switch (client->UpdateActivity(activity)) {
     case DiscordRichPresence::Result::Ok:
-        Log::Info("DiscordRPC::SetActivity", "Successfully set activity");
+        Log::Info("DiscordRPC::SetInGame", "Successfully set activity");
         break;
     case DiscordRichPresence::Result::WritePipeFailed:
         // Pipe handle was most likely closed, try reconnecting
-        Log::Error("DiscordRPC::SetActivity", "Failed to set activity (WritePipeFailed)");
+        Log::Error("DiscordRPC::SetInGame", "Failed to set activity (WritePipeFailed)");
         if (client->Reconnect() == DiscordRichPresence::Result::Ok) {
-            Log::Info("DiscordRPC::SetActivity", "Reconnected to IPC, retrying...");
+            Log::Info("DiscordRPC::SetInGame", "Reconnected to IPC, retrying...");
             goto update_activity;
         } else {
-            Log::Error("DiscordRPC::SetActivity", "Failed to reconnect to IPC");
+            Log::Error("DiscordRPC::SetInGame", "Failed to reconnect to IPC");
         }
         break;
     default:
@@ -54,7 +54,7 @@ void DiscordRPC::SetActivity(const Game::RobloxUniverseDetails place) {
     }
 }
 
-void DiscordRPC::ClearActivity() {
+void DiscordRPC::SetInApp() {
     auto assets = &activity.GetAssets();
     assets->SetLargeImage("roblox");
     assets->SetLargeImageText("");
@@ -66,20 +66,20 @@ void DiscordRPC::ClearActivity() {
     update_activity:
     switch (client->UpdateActivity(activity)) {
     case DiscordRichPresence::Result::Ok:
-        Log::Info("DiscordRPC::ClearActivity", "Successfully clear activity");
+        Log::Info("DiscordRPC::SetInApp", "Successfully update activity");
         break;
     case DiscordRichPresence::Result::WritePipeFailed:
         // Pipe handle was most likely closed, try reconnecting
-        Log::Error("DiscordRPC::ClearActivity", "Failed to clear activity (WritePipeFailed)");
+        Log::Error("DiscordRPC::SetInApp", "Failed to update activity (WritePipeFailed)");
         if (client->Reconnect() == DiscordRichPresence::Result::Ok) {
-            Log::Info("DiscordRPC::ClearActivity", "Reconnected to IPC, retrying...");
+            Log::Info("DiscordRPC::SetInApp", "Reconnected to IPC, retrying...");
             goto update_activity;
         } else {
-            Log::Error("DiscordRPC::ClearActivity", "Failed to reconnect to IPC");
+            Log::Error("DiscordRPC::SetInApp", "Failed to reconnect to IPC");
         }
         break;
     default:
-        Log::Error("DiscordRPC::ClearActivity", "Failed to clear activity");
+        Log::Error("DiscordRPC::SetInApp", "Failed to update activity");
         break;
     }
 }

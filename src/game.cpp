@@ -463,12 +463,12 @@ namespace Game {
                             auto details = GetUniverseDetails(universe_id);
                             Log::Info("Game::WatchRobloxLog", "Joined universe {}", details.name);
                             
-                            DiscordRPC::GetInstance()->SetActivity(details);
+                            DiscordRPC::GetInstance()->SetInGame(details);
                         } else {
                             Log::Warning("Game::WatchRobloxLog", "Failed to get current universe id");
                         }
                     } else if (line.contains("NetworkClient:Remove") && config->discord_rpc) {
-                        DiscordRPC::GetInstance()->ClearActivity();
+                        DiscordRPC::GetInstance()->SetInApp();
                     }
                 }
             } else {

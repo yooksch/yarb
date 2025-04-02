@@ -8,8 +8,8 @@
 class DiscordRPC {
 public:
     void Init();
-    void SetActivity(const Game::RobloxUniverseDetails place);
-    void ClearActivity();
+    void SetInGame(const Game::RobloxUniverseDetails place);
+    void SetInApp();
     static DiscordRPC* GetInstance();
 private:
     std::shared_ptr<DiscordRichPresence::Client> client;
