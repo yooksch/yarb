@@ -36,11 +36,11 @@ void DiscordRPC::SetInGame(const Game::RobloxUniverseDetails place) {
     update_activity:
     switch (client->UpdateActivity(activity)) {
     case DiscordRichPresence::Result::Ok:
-        Log::Info("DiscordRPC::SetInGame", "Successfully set activity");
+        Log::Info("DiscordRPC::SetInGame", "Successfully updated activity");
         break;
     case DiscordRichPresence::Result::WritePipeFailed:
         // Pipe handle was most likely closed, try reconnecting
-        Log::Error("DiscordRPC::SetInGame", "Failed to set activity (WritePipeFailed)");
+        Log::Error("DiscordRPC::SetInGame", "Failed to update activity (WritePipeFailed)");
         if (client->Reconnect() == DiscordRichPresence::Result::Ok) {
             Log::Info("DiscordRPC::SetInGame", "Reconnected to IPC, retrying...");
             goto update_activity;
@@ -49,7 +49,7 @@ void DiscordRPC::SetInGame(const Game::RobloxUniverseDetails place) {
         }
         break;
     default:
-        Log::Error("DiscordRPC::SetActivity", "Failed to set activity");
+        Log::Error("DiscordRPC::SetActivity", "Failed to update activity");
         break;
     }
 }
@@ -66,7 +66,7 @@ void DiscordRPC::SetInApp() {
     update_activity:
     switch (client->UpdateActivity(activity)) {
     case DiscordRichPresence::Result::Ok:
-        Log::Info("DiscordRPC::SetInApp", "Successfully update activity");
+        Log::Info("DiscordRPC::SetInApp", "Successfully updated activity");
         break;
     case DiscordRichPresence::Result::WritePipeFailed:
         // Pipe handle was most likely closed, try reconnecting
