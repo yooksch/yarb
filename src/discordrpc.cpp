@@ -1,7 +1,9 @@
 #include "discordrpc.hpp"
+#include "config.hpp"
 #include "drpc/drpc.hpp"
 #include "game.hpp"
 #include "log.hpp"
+#include <thread>
 
 DiscordRPC* DiscordRPC::GetInstance() {
     static DiscordRPC instance;
@@ -11,47 +13,83 @@ DiscordRPC* DiscordRPC::GetInstance() {
 void DiscordRPC::Init() {
     init_time = time(NULL);
     client = std::make_shared<DiscordRichPresence::Client>(1355511418530697336);
-    if (client->Connect() == DiscordRichPresence::Result::Ok)
-        Log::Info("DiscordRPC::Init", "Connected");
-    else
-        Log::Error("DiscordRPC::Init", "Failed to connect");
 
-    activity = DiscordRichPresence::Activity { };
-    activity.SetClientId(1355511418530697336);
-    activity.SetType(DiscordRichPresence::ActivityType::Playing);
-    activity.SetName("Roblox");
+    client->SetEventCallback([](auto event) {
+        if (event == DiscordRichPresence::Event::Connected)
+            Log::Info("DRPC::Events", "Connected");
+        else if (event == DiscordRichPresence::Event::Disconnected)
+            Log::Info("DRPC::Events", "Disconnected");
+    });
 
-    ClearActivity();
+    bool debug_mode = Config::GetInstance()->debug_mode;
+    client->SetLogCallback([debug_mode](auto result, auto level, auto message, auto _) {
+        if (!debug_mode && level == DiscordRichPresence::LogLevel::Trace) return;
+
+        switch (level) {
+        case DiscordRichPresence::LogLevel::Info:
+            Log::Info("DRPC::Log", "{}: {}", DiscordRichPresence::ResultToString(result), message);
+            break;
+        case DiscordRichPresence::LogLevel::Warn:
+            Log::Warning("DRPC::Log", "{}: {}", DiscordRichPresence::ResultToString(result), message);
+            break;
+        case DiscordRichPresence::LogLevel::Error:
+            Log::Error("DRPC::Log", "{}: {}", DiscordRichPresence::ResultToString(result), message);
+            break;
+        case DiscordRichPresence::LogLevel::Trace:
+            Log::Debug("DRPC::Log", "{}: {}", DiscordRichPresence::ResultToString(result), message);
+            break;
+        }
+    });
+
+    Log::Info("DiscordRPC::Init", "Connecting");
+    if (auto result = client->Connect(); result != DiscordRichPresence::Result::Ok)
+        Log::Error("DiscordRPC::Init", "Failed to connect ({})", DiscordRichPresence::ResultToString(result));
+
+    activity = std::make_shared<DiscordRichPresence::Activity>();
+    activity->SetClientId(1355511418530697336);
+    activity->SetType(DiscordRichPresence::ActivityType::Playing);
+    activity->SetName("Roblox");
+
+    SetInApp();
 }
 
-void DiscordRPC::SetActivity(const Game::RobloxUniverseDetails place) {
-    auto assets = &activity.GetAssets();
+void DiscordRPC::SetInGame(const Game::RobloxUniverseDetails place) {
+    auto assets = activity->GetAssets();
     assets->SetLargeImage(place.cover_url);
     assets->SetLargeImageText(place.name);
 
-    activity.SetDetails(place.name);
-    activity.SetState(std::format("by {}", place.creator));
-    activity.GetTimestamps().SetStart(time(NULL));
+    activity->SetDetails(place.name);
+    activity->SetState(std::format("by {}", place.creator));
+    activity->GetTimestamps()->SetStart(std::time(nullptr));
 
-    if (auto result = client->UpdateActivity(activity); result == DiscordRichPresence::Result::Ok) {
-        Log::Info("DiscordRPC::SetActivity", "Successfully set activity");
-    } else {
-        Log::Error("DiscordRPC::SetActivity", "Failed to set activity ({})", (int)result);
-    }
+    client->UpdateActivity(activity, [](auto result, auto) {
+        if (result == DiscordRichPresence::Result::Ok)
+            Log::Info("DiscordRPC::SetInGame", "{}", "Successfully set activity");
+        else
+            Log::Error("DiscordRPC::SetInGame", "{} ({})", "Failed to set activity", DiscordRichPresence::ResultToString(result));
+    });
 }
 
-void DiscordRPC::ClearActivity() {
-    auto assets = &activity.GetAssets();
+void DiscordRPC::SetInApp() {
+    auto assets = activity->GetAssets();
     assets->SetLargeImage("roblox");
     assets->SetLargeImageText("");
 
-    activity.SetDetails("");
-    activity.SetState("");
-    activity.GetTimestamps().SetStart(init_time);
+    activity->SetDetails("");
+    activity->SetState("");
+    activity->GetTimestamps()->SetStart(init_time);
 
-    if (auto result = client->UpdateActivity(activity); result == DiscordRichPresence::Result::Ok) {
-        Log::Info("DiscordRPC::ClearActivity", "Successfully cleared activity");
-    } else {
-        Log::Error("DiscordRPC::ClearActivity", "Failed to clear activity ({})", (int)result);
-    }
+    client->UpdateActivity(activity, [](auto result, auto) {
+        if (result == DiscordRichPresence::Result::Ok)
+            Log::Info("DiscordRPC::SetInApp", "{}", "Successfully set activity");
+        else
+            Log::Error("DiscordRPC::SetInApp", "{} ({})", "Failed to set activity", DiscordRichPresence::ResultToString(result));
+    });
+}
+
+void DiscordRPC::Start() {
+    std::thread([this]() {
+        auto result = client->Run();
+        Log::Info("DRPC", "Exited with: {}", DiscordRichPresence::ResultToString(result));
+    }).detach();
 }

@@ -237,6 +237,7 @@ void SettingsGUI::Render() {
                         if (config->query_server_location || config->discord_rpc) {
                             if (config->discord_rpc) {
                                 DiscordRPC::GetInstance()->Init();
+                                DiscordRPC::GetInstance()->Start();
                             }
                             
                             std::thread([] {
