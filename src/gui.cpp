@@ -197,6 +197,16 @@ void HelpText(const char* text) {
     }
 }
 
+void WarnText(const char* text) {
+    ImGui::TextColored(ImVec4 { 237 / 255.f, 172 / 255.f, 42 / 255.f, 1.f }, "/!\\");
+    if (ImGui::BeginItemTooltip()) {
+        ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+        ImGui::TextUnformatted(text);
+        ImGui::PopTextWrapPos();
+        ImGui::EndTooltip();
+    }
+}
+
 void SettingsGUI::Render() {
     ImGui::SetNextWindowSize({ (float)window_width, (float)window_height });
     ImGui::SetNextWindowPos({ 0, 0 });
@@ -507,7 +517,7 @@ void SettingsGUI::Render() {
             // Better vision
             ImGui::Checkbox("Better Vision", &easy_flags->better_vision);
             ImGui::SameLine();
-            HelpText("Slightly improve vision in certain games");
+            WarnText("Slightly improve vision in certain games. May cause lighting issues");
         }
 
         ImGui::EndTabItem();
