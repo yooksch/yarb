@@ -467,7 +467,7 @@ void SettingsGUI::Render() {
             // DPI scaling
             ImGui::Checkbox("DPI scaling", &easy_flags->dpi_scaling);
             ImGui::SameLine();
-            HelpText("Disable to preserve rendering quality");
+            HelpText("Disable to preserve rendering quality when using >100% display scaling");
 
             // Disable fullscreen titlebar
             ImGui::Checkbox("Disable fullscreen titlebar", &easy_flags->disable_fullscreen_titlebar);
